@@ -1,8 +1,9 @@
 # 🎼 Orquestra de Bolso — Bells & Handpan
 
 Aplicação musical colectiva para workshops: cada participante usa o seu
-telemóvel como instrumento musical. Versão 1 com dois timbres — **Bells**
-(sino musical) e **Handpan** — sobre a escala fixa de **Ré menor pentatónica**.
+telemóvel como instrumento musical. Versão 1 com **cinco naipes** —
+Bells, Handpan, FM Bell, Sub Bass e Coro Formant — sobre a escala fixa de
+**Ré menor pentatónica**, com 50 lugares (10 por naipe).
 
 ## Como executar
 
@@ -26,7 +27,14 @@ telemóvel como instrumento musical. Versão 1 com dois timbres — **Bells**
 
 ## Versão 1 — o que está implementado
 
-- Dois instrumentos, cada um com **2 botões de nota** grandes (telemóvel em
+- **Cinco naipes** (10 lugares cada, 50 no total), com tessituras
+  deslocadas por oitava para não se acumularem na mesma zona:
+  - **🔔 Bells** — sinos, 1 oitava acima (brilho)
+  - **🥁 Handpan** — registo médio (corpo acústico)
+  - **✨ FM Bell** — sino elétrico FM, 1 oitava acima (brilho electrónico)
+  - **🌊 Sub Bass** — seno com queda de pitch, 2 oitavas abaixo (fundação)
+  - **🗣 Coro Formant** — vogal sintética via bandpass duplo (coro robótico)
+- Cada instrumento com **2 botões de nota** grandes (telemóvel em
   orientação vertical).
 - **Escala fixa**: Ré menor pentatónica (Ré – Fá – Sol – Lá – Dó).
 - Atribuições (configuração central em `public/index.html`,

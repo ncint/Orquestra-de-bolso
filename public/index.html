@@ -89,13 +89,25 @@
 <!-- Ecrã: escolha do instrumento -->
 <div class="screen active" id="screen-menu">
   <p>Escolhe o teu instrumento:</p>
-  <button class="choose-btn bells" data-inst="bells">
+  <button class="choose-btn" data-inst="bells">
     🔔 Bells
-    <small>Sinos musicais — ataque definido, ressonância natural</small>
+    <small>Sinos — brilho, registo agudo</small>
   </button>
-  <button class="choose-btn handpan" data-inst="handpan">
+  <button class="choose-btn" data-inst="handpan">
     🥁 Handpan
-    <small>Ataque suave, corpo tonal, decaimento natural</small>
+    <small>Ataque suave, corpo tonal — registo médio</small>
+  </button>
+  <button class="choose-btn" data-inst="fmbell">
+    ✨ FM Bell
+    <small>Sino elétrico — brilho electrónico</small>
+  </button>
+  <button class="choose-btn" data-inst="subbass">
+    🌊 Sub Bass
+    <small>Grave profundo — fundação física</small>
+  </button>
+  <button class="choose-btn" data-inst="formant">
+    🗣 Coro Formant
+    <small>Vogal sintética — coro robótico</small>
   </button>
 </div>
 
@@ -133,40 +145,73 @@ const SCALES = {
   },
 };
 
+/* Naipes: 5 timbres × 10 lugares. octaveShift desloca a tessitura de
+   cada naipe para uma região de frequência própria, evitando que
+   50 telemóveis se acumulem na mesma zona. */
 const SESSION_CONFIG = {
   scale: 're-menor-pentatonica',
   places: 50,
+  placesPerSection: 10,
   instruments: {
     bells: {
       id: 'bells',
       label: '🔔 Bells',
-      sub: 'Sino musical — deixa a nota soar e decair',
-      notes: [0, 3],  // índices na escala: Ré, Lá
+      sub: 'Sino musical — brilho, registo agudo',
+      notes: [0, 3],
+      octaveShift: 1,   // uma oitava acima
     },
     handpan: {
       id: 'handpan',
       label: '🥁 Handpan',
-      sub: 'Toque suave e ressonante — deixa a nota vibrar',
-      notes: [1, 4],  // índices na escala: Fá, Dó
+      sub: 'Ataque suave, corpo tonal — registo médio',
+      notes: [1, 4],
+      octaveShift: 0,
+    },
+    fmbell: {
+      id: 'fmbell',
+      label: '✨ FM Bell',
+      sub: 'Sino elétrico (FM) — brilho electrónico',
+      notes: [2, 4],
+      octaveShift: 1,
+    },
+    subbass: {
+      id: 'subbass',
+      label: '🌊 Sub Bass',
+      sub: 'Grave profundo com queda de pitch — fundação',
+      notes: [0, 2],
+      octaveShift: -2,  // duas oitavas abaixo
+    },
+    formant: {
+      id: 'formant',
+      label: '🗣 Coro Formant',
+      sub: 'Vogal sintética — coro robótico',
+      notes: [1, 3],
+      octaveShift: 0,
     },
   },
 };
 
-/* Atribuição determinística de um lugar a instrumento + 2 notas.
-   Alternância de timbre por lugar; cobertura equilibrada das notas
-   da escala através de pares não sobrepostos (0,3) (1,4) (2,3) (0,4) (1,2),
-   repetidos ciclicamente. O mesmo lugar tem sempre as mesmas notas. */
+/* Atribuição determinística de um lugar a naipe + 2 notas.
+   Naipe = bloco de 10 lugares; notas = pares equilibrados cíclicos.
+   O mesmo lugar tem sempre o mesmo naipe e as mesmas notas. */
 const PLACE_NOTE_PAIRS = [[0, 3], [1, 4], [2, 3], [0, 4], [1, 2]];
+const SECTION_ORDER = ['bells', 'handpan', 'fmbell', 'subbass', 'formant'];
 
 function assignPlace(place) {
   const scale = SCALES[SESSION_CONFIG.scale];
-  const instrumentId = place % 2 === 0 ? 'bells' : 'handpan';
+  const sectionIdx = Math.floor((place - 1) / SESSION_CONFIG.placesPerSection);
+  const instrumentId = SECTION_ORDER[sectionIdx % SECTION_ORDER.length];
+  const instrument = SESSION_CONFIG.instruments[instrumentId];
   const pair = PLACE_NOTE_PAIRS[(place - 1) % PLACE_NOTE_PAIRS.length];
+  const octave = Math.pow(2, instrument.octaveShift || 0);
   return {
     place,
     instrumentId,
-    instrument: SESSION_CONFIG.instruments[instrumentId],
-    notes: pair.map((i) => scale.notes[i]),
+    instrument,
+    notes: pair.map((i) => ({
+      name: scale.notes[i].name,
+      freq: scale.notes[i].freq * octave,
+    })),
   };
 }
 
@@ -285,9 +330,92 @@ const AudioEngine = (() => {
     group.gains.push(g2);
   }
 
+  /* FM Bell: síntese FM (modulador razão 3.5, índice decai rápido) —
+     sino elétrico com clique metálico no ataque. */
+  function playFMBell(freq) {
+    ensure();
+    const t = ctx.currentTime + 0.005;
+    const group = beginNote(t + 3.2);
+
+    const carrier = ctx.createOscillator();
+    const modulator = ctx.createOscillator();
+    const modGain = ctx.createGain();
+    const g = ctx.createGain();
+    carrier.type = 'sine';
+    carrier.frequency.value = freq;
+    modulator.type = 'sine';
+    modulator.frequency.value = freq * 3.5;
+    modGain.gain.setValueAtTime(freq * 2.2, t);
+    modGain.gain.exponentialRampToValueAtTime(freq * 0.02, t + 0.7);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.5, t + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 3.0);
+    modulator.connect(modGain).connect(carrier.frequency);
+    carrier.connect(g).connect(master);
+    carrier.start(t); modulator.start(t);
+    carrier.stop(t + 3.2); modulator.stop(t + 3.2);
+    group.gains.push(g);
+  }
+
+  /* Sub Bass: seno puro com queda de pitch no ataque (tipo 808),
+     decaimento longo — fundação física do grave. */
+  function playSubBass(freq) {
+    ensure();
+    const t = ctx.currentTime + 0.005;
+    const group = beginNote(t + 3.5);
+
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(freq * 1.5, t);
+    o.frequency.exponentialRampToValueAtTime(freq, t + 0.05);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.75, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 3.2);
+    o.connect(g).connect(master);
+    o.start(t); o.stop(t + 3.5);
+    group.gains.push(g);
+  }
+
+  /* Formant: dente-de-serra através de dois bandpass (vogal "a") —
+     coro robótico suave com decaimento médio. */
+  function playFormant(freq) {
+    ensure();
+    const t = ctx.currentTime + 0.005;
+    const group = beginNote(t + 2.6);
+
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'sawtooth';
+    o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.4, t + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 2.2);
+    o.connect(g);
+
+    const vogal = (f, q, peak) => {
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = f;
+      bp.Q.value = q;
+      const og = ctx.createGain();
+      og.gain.value = peak;
+      g.connect(bp).connect(og).connect(master);
+    };
+    vogal(700, 8, 0.9);
+    vogal(1220, 10, 0.5);
+    vogal(2600, 12, 0.18);
+
+    o.start(t); o.stop(t + 2.6);
+    group.gains.push(g);
+  }
+
   function play(instrumentId, freq) {
     if (instrumentId === 'bells') playBells(freq);
     else if (instrumentId === 'handpan') playHandpan(freq);
+    else if (instrumentId === 'fmbell') playFMBell(freq);
+    else if (instrumentId === 'subbass') playSubBass(freq);
+    else if (instrumentId === 'formant') playFormant(freq);
   }
 
   return { ensure, isReady, play };
@@ -374,6 +502,9 @@ function updateAudioStatus() {
 const PAD_COLORS = {
   bells: ['#7db8e8', '#e89d7d'],
   handpan: ['#e8c07d', '#9dc7a1'],
+  fmbell: ['#c9a8e8', '#e8d47d'],
+  subbass: ['#7d8fe8', '#7db8c9'],
+  formant: ['#e89dc4', '#c97da8'],
 };
 
 function openInstrument(instId, noteObjs, place) {
@@ -385,7 +516,11 @@ function openInstrument(instId, noteObjs, place) {
   ui.title.textContent = inst.label + (place ? ' · Lugar ' + place : '');
   ui.sub.textContent = inst.sub + ' — escala: ' + scale.name;
 
-  const notes = noteObjs || inst.notes.map((i) => scale.notes[i]);
+  const octave = Math.pow(2, inst.octaveShift || 0);
+  const notes = noteObjs || inst.notes.map((i) => ({
+    name: scale.notes[i].name,
+    freq: scale.notes[i].freq * octave,
+  }));
   ui.pads.innerHTML = '';
   armedPad = null;
   notes.forEach((note, i) => {
