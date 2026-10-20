@@ -663,6 +663,7 @@ function openInstrument(instId, noteObjs, place) {
         btn.classList.add('armed');
       }
       requestMotionPermission();
+      lockPortrait();
     });
     ['pointerup', 'pointercancel', 'pointerleave'].forEach((ev) => {
       btn.addEventListener(ev, () => btn.classList.remove('pressed'));
@@ -776,6 +777,7 @@ function openTheremin(inst, scale) {
     updateAudioStatus();
     const { freq, idx } = freqFromY(e.clientY);
     AudioEngine.startTheremin(freq);
+    lockPortrait();
     playing = true;
     lastIdx = idx;
     highlight(idx);
@@ -835,6 +837,29 @@ volSlider.addEventListener('input', () => {
    A atribuição é calculada localmente — sem servidor.
    Ex.: https://.../?lugar=7 abre já o instrumento do lugar 7.
    ================================================================ */
+
+/* Bloqueio de orientação vertical: apenas possível em ecrã inteiro e
+   apenas suportado em Android/Chrome. O primeiro toque pede ecrã
+   inteiro + bloqueio 'portrait'. No iOS/Safari não é suportado —
+   o overlay de rotação cobre esses casos. */
+let portraitLockTried = false;
+
+function lockPortrait() {
+  if (portraitLockTried) return;
+  portraitLockTried = true;
+  const el = document.documentElement;
+  const requestFS = el.requestFullscreen || el.webkitRequestFullscreen;
+  if (typeof requestFS !== 'function') return;
+  requestFS.call(el).then(() => {
+    if (screen.orientation && typeof screen.orientation.lock === 'function') {
+      screen.orientation.lock('portrait').catch(() => {
+        /* navegador recusou — o overlay continua a cobrir */
+      });
+    }
+  }).catch(() => {
+    /* ecrã inteiro recusado — continuar com overlay */
+  });
+}
 
 const placeParams = new URLSearchParams(location.search);
 const placeNum = parseInt(placeParams.get('lugar'), 10);
