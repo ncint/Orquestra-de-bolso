@@ -551,36 +551,73 @@ const AudioEngine = (() => {
      setFreq (pitch) e stop (desvanecimento ~0.4 s ao levantar o dedo). */
   let theremin = null;
 
+  /* Theremin estilo Etherpad: voz rica (seno dominante + triângulo
+     suave + formante), vibrato lento, e brilho controlável pela
+     posição X do dedo (drift). Cada toque = uma voz (multitouch,
+     acordes sob a mão). Ao levantar, desvanece como um fôlego. */
   function startTheremin(freq) {
     ensure();
-    stopTheremin();
     const t = ctx.currentTime;
+
     const o = ctx.createOscillator();
+    const o2 = ctx.createOscillator();
     const g = ctx.createGain();
+    const g2 = ctx.createGain();
     const vib = ctx.createOscillator();
     const vibGain = ctx.createGain();
     const lp = ctx.createBiquadFilter();
+    const form = ctx.createBiquadFilter();
+
     o.type = 'sine';
     o.frequency.setValueAtTime(freq, t);
+    o2.type = 'triangle';
+    o2.frequency.setValueAtTime(freq, t);
+    g2.gain.value = 0.12;
     vib.frequency.value = 5.5;
     vibGain.gain.value = freq * 0.006;
     lp.type = 'lowpass';
     lp.frequency.value = Math.max(freq * 2.5, 600);
     lp.Q.value = 0.5;
+    form.type = 'bandpass';
+    form.frequency.value = Math.max(freq * 1.5, 400);
+    form.Q.value = 1.2;
+    const formGain = ctx.createGain();
+    formGain.gain.value = 0.25;
+
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.linearRampToValueAtTime(0.38, t + 0.18);
-    vib.connect(vibGain).connect(o.frequency);
-    o.connect(lp).connect(g).connect(master);
-    o.start(t); vib.start(t);
-    theremin = { o, g, vib, vibGain, lp };
+    g.gain.linearRampToValueAtTime(0.32, t + 0.18);
+
+    vib.connect(vibGain);
+    vibGain.connect(o.frequency);
+    vibGain.connect(o2.frequency);
+    o.connect(lp);
+    o2.connect(g2).connect(lp);
+    lp.connect(g);
+    lp.connect(form).connect(formGain).connect(g);
+    g.connect(master);
+    o.start(t); o2.start(t); vib.start(t);
+    theremin = { o, o2, g, vib, vibGain, lp };
   }
 
   function setThereminFreq(freq) {
     if (!theremin) return;
     const t = ctx.currentTime;
     theremin.o.frequency.setTargetAtTime(freq, t, 0.03);
+    theremin.o2.frequency.setTargetAtTime(freq, t, 0.03);
     theremin.vibGain.gain.setTargetAtTime(freq * 0.006, t, 0.03);
     theremin.lp.frequency.setTargetAtTime(Math.max(freq * 2.5, 600), t, 0.05);
+  }
+
+  /* Drift: brilho da voz pela posição X do dedo (0 = escuro,
+     1 = brilhante) — moldar o timbre a tocar, como no Etherpad. */
+  function setThereminTone(x01) {
+    if (!theremin) return;
+    const t = ctx.currentTime;
+    const base = theremin.o.frequency.value;
+    const min = Math.max(base * 1.2, 400);
+    const max = Math.max(base * 8, 2000);
+    const f = min + (max - min) * Math.max(0, Math.min(1, x01));
+    theremin.lp.frequency.setTargetAtTime(f, t, 0.08);
   }
 
   function stopTheremin() {
@@ -592,6 +629,7 @@ const AudioEngine = (() => {
       th.g.gain.cancelScheduledValues(t);
       th.g.gain.setTargetAtTime(0.0001, t, 0.12);
       th.o.stop(t + 0.8);
+      if (th.o2) th.o2.stop(t + 0.8);
       th.vib.stop(t + 0.8);
     } catch (_) {}
   }
@@ -748,7 +786,7 @@ const AudioEngine = (() => {
 
   return {
     ensure, isReady, play, setVolume,
-    startTheremin, setThereminFreq, stopTheremin,
+    startTheremin, setThereminFreq, setThereminTone, stopTheremin,
     startGroove, stopGroove, setGroovePattern, setGrooveBpm,
     groovePatternNames,
   };
@@ -1213,6 +1251,10 @@ function openTheremin(inst, scale) {
       lastIdx = idx;
       highlight(idx);
     }
+    /* Drift: X do dedo molda o brilho (esquerda = escuro,
+       direita = brilhante). */
+    const rect = field.getBoundingClientRect();
+    AudioEngine.setThereminTone((e.clientX - rect.left) / rect.width);
   });
   const end = () => {
     if (!playing) return;
