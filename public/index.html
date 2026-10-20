@@ -123,6 +123,8 @@
   .choose-btn[data-inst="handpan"]   { --sec: #e8b04b; }
   .choose-btn[data-inst="fmbell"]    { --sec: #c9a8e8; }
   .choose-btn[data-inst="formant"]   { --sec: #e89dc4; }
+  .choose-btn[data-inst="pad"]       { --sec: #9db8e8; }
+  .choose-btn[data-inst="pluck"]     { --sec: #e8d47d; }
   .choose-btn[data-inst="djembe"]    { --sec: #c98a5d; }
   .choose-btn[data-inst="cymbal"]     { --sec: #d8c95d; }
   .choose-btn[data-inst="shaker"]    { --sec: #9dc9b8; }
@@ -267,6 +269,18 @@
       <small>Vogal sintética — coro robótico</small>
     </span>
   </button>
+  <button class="choose-btn" data-inst="pad">
+    <span class="ico">🌌</span>
+    <span class="txt">Pad
+      <small>Nuvem electrónica quente — textura ambiente</small>
+    </span>
+  </button>
+  <button class="choose-btn" data-inst="pluck">
+    <span class="ico">💫</span>
+    <span class="txt">Pluck
+      <small>Synth analógico com filtro ressonante</small>
+    </span>
+  </button>
   <button class="choose-btn" data-inst="djembe">
     <span class="ico">🪘</span>
     <span class="txt">Djembé
@@ -389,6 +403,20 @@ const SESSION_CONFIG = {
       sub: 'Vogal sintética — coro robótico',
       notes: [1, 3],
       octaveShift: 0,
+    },
+    pad: {
+      id: 'pad',
+      label: '🌌 Pad',
+      sub: 'Textura electrónica quente — nuvem de sintetizadores',
+      notes: [1, 4],
+      octaveShift: 0,
+    },
+    pluck: {
+      id: 'pluck',
+      label: '💫 Pluck',
+      sub: 'Pluck synth com filtro ressonante — electrónica analógica',
+      notes: [2, 4],
+      octaveShift: 1,
     },
     djembe: {
       id: 'djembe',
@@ -680,6 +708,62 @@ const AudioEngine = (() => {
   /* Djembé: membrana sintetizada. Botão 1 (nota baixa) = toque grave
      seco — seno com pitch bend descendente e ruído curto; botão 2
      (nota alta) = slap — ruído filtrado agudo com ressonância. */
+  /* Pad: nuvem electrónica — 3 dente-de-serra desafinados com
+     lowpass suave, ataque lento (1,2 s) e decaimento muito longo
+     (8 s). Textura de fundo ambiente. */
+  function playPad(freq) {
+    ensure();
+    const t = ctx.currentTime + 0.005;
+    const group = beginNote(t + 9.5);
+
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.setValueAtTime(freq * 2, t);
+    lp.frequency.linearRampToValueAtTime(freq * 4, t + 3);
+    lp.Q.value = 0.7;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.26, t + 1.2);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 8.5);
+
+    [-7, 0, 7].forEach((cents) => {
+      const o = ctx.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.value = freq * Math.pow(2, cents / 1200);
+      const og = ctx.createGain();
+      og.gain.value = 1 / 3;
+      o.connect(og).connect(lp);
+      o.start(t); o.stop(t + 9);
+    });
+    lp.connect(g).connect(master);
+    group.gains.push(g);
+  }
+
+  /* Pluck: dente-de-serra curto com lowpass RESSONANTE cujo cutoff
+     desce com o envelope — ataque percussivo, carácter analógico
+     (acid/synth pluck). */
+  function playPluck(freq) {
+    ensure();
+    const t = ctx.currentTime + 0.005;
+    const group = beginNote(t + 2.2);
+
+    const o = ctx.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.value = freq;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.setValueAtTime(freq * 12, t);
+    lp.frequency.exponentialRampToValueAtTime(freq * 1.2, t + 0.35);
+    lp.Q.value = 8;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.5, t + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 1.6);
+    o.connect(lp).connect(g).connect(master);
+    o.start(t); o.stop(t + 1.8);
+    group.gains.push(g);
+  }
+
   function playDjembe(freq, pad) {
     ensure();
     const t = ctx.currentTime + 0.005;
@@ -902,10 +986,142 @@ const AudioEngine = (() => {
     }
   }
 
+  /* Multitouch: cada dedo = uma voz independente (chaveada por
+     pointerId). Acordes sob a mão, como no Etherpad. */
+  const thereminVoices = new Map();
+
+  /* Theremin estilo Etherpad: voz rica (seno dominante + triângulo
+     suave + formante), vibrato lento, e brilho controlável pela
+     posição X do dedo (drift). Cada toque = uma voz (multitouch,
+     acordes sob a mão). Ao levantar, desvanece como um fôlego. */
+  function startTheremin(freq, pointerId) {
+    ensure();
+    const t = ctx.currentTime;
+
+    const o = ctx.createOscillator();
+    const o2 = ctx.createOscillator();
+    const g = ctx.createGain();
+    const g2 = ctx.createGain();
+    const vib = ctx.createOscillator();
+    const vibGain = ctx.createGain();
+    const lp = ctx.createBiquadFilter();
+    const form = ctx.createBiquadFilter();
+
+    o.type = 'sine';
+    o.frequency.setValueAtTime(freq, t);
+    o2.type = 'triangle';
+    o2.frequency.setValueAtTime(freq, t);
+    g2.gain.value = 0.12;
+    vib.frequency.value = 5.5;
+    vibGain.gain.value = freq * 0.006;
+    lp.type = 'lowpass';
+    lp.frequency.value = Math.max(freq * 2.5, 600);
+    lp.Q.value = 0.5;
+    form.type = 'bandpass';
+    form.frequency.value = Math.max(freq * 1.5, 400);
+    form.Q.value = 1.2;
+    const formGain = ctx.createGain();
+    formGain.gain.value = 0.25;
+
+    /* Dois gains separados: g = envelope de ataque/queda (nunca
+       tocado durante a nota), gVol = volume expressivo do dedo.
+       Antes, o setTargetAtTime do volume cancelava a rampa de
+       ataque a meio — origem dos estalidos. */
+    const gVol = ctx.createGain();
+    gVol.gain.value = 0.6;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.32, t + 0.18);
+
+    vib.connect(vibGain);
+    vibGain.connect(o.frequency);
+    vibGain.connect(o2.frequency);
+    o.connect(lp);
+    o2.connect(g2).connect(lp);
+    lp.connect(g);
+    lp.connect(form).connect(formGain).connect(g);
+    g.connect(gVol).connect(master);
+    /* Send de reverb próprio do theremin, mais presente que o mix
+       global (18%): 40%. */
+    const revSend = ctx.createGain();
+    revSend.gain.value = 0.4;
+    gVol.connect(revSend).connect(reverb);
+    o.start(t); o2.start(t); vib.start(t);
+    const voice = { o, o2, g, gVol, vib, vibGain, lp };
+    const key = pointerId == null ? '_solo' : String(pointerId);
+    stopTheremin(key);
+    thereminVoices.set(key, voice);
+  }
+
+  function voiceFor(pointerId) {
+    const key = pointerId == null ? '_solo' : String(pointerId);
+    return thereminVoices.get(key);
+  }
+
+  function setThereminFreq(freq, pointerId) {
+    const th = voiceFor(pointerId);
+    if (!th) return;
+    const t = ctx.currentTime;
+    th.o.frequency.setTargetAtTime(freq, t, 0.03);
+    th.o2.frequency.setTargetAtTime(freq, t, 0.03);
+    th.vibGain.gain.setTargetAtTime(freq * 0.006, t, 0.03);
+    th.lp.frequency.setTargetAtTime(Math.max(freq * 2.5, 600), t, 0.05);
+  }
+
+  /* Drift: brilho da voz pela posição X do dedo (0 = escuro,
+     1 = brilhante) — moldar o timbre a tocar, como no Etherpad. */
+  function setThereminTone(x01, pointerId) {
+    const th = voiceFor(pointerId);
+    if (!th) return;
+    const t = ctx.currentTime;
+    const base = th.o.frequency.value;
+    const min = Math.max(base * 1.2, 400);
+    const max = Math.max(base * 8, 2000);
+    const f = min + (max - min) * Math.max(0, Math.min(1, x01));
+    th.lp.frequency.setTargetAtTime(f, t, 0.08);
+  }
+
+  /* Volume expressivo (antena de volume do theremin): eixo horizontal
+     do campo, 0 = quase silêncio, 1 = volume pleno. Curva suave. */
+  function setThereminVolume(x01, pointerId) {
+    const th = voiceFor(pointerId);
+    if (!th) return;
+    const t = ctx.currentTime;
+    const v = Math.max(0, Math.min(1, x01));
+    const curve = v * v; /* quadrática: mais controlo nos volumes baixos */
+    th.gVol.gain.setTargetAtTime(0.001 + curve * 0.9, t, 0.06);
+  }
+
+  function stopTheremin(pointerId) {
+    const key = pointerId == null ? '_solo' : String(pointerId);
+    const th = thereminVoices.get(key);
+    if (!th) {
+      if (pointerId == null) stopAllTheremin();
+      return;
+    }
+    thereminVoices.delete(key);
+    const t = ctx.currentTime;
+    try {
+      th.g.gain.cancelScheduledValues(t);
+      th.g.gain.setTargetAtTime(0.0001, t, 0.12);
+      th.o.stop(t + 0.8);
+      if (th.o2) th.o2.stop(t + 0.8);
+      th.vib.stop(t + 0.8);
+    } catch (_) {}
+  }
+
+  function stopAllTheremin() {
+    for (const key of Array.from(thereminVoices.keys())) {
+      stopTheremin(key);
+    }
+  }
+
+
   function play(instrumentId, freq) {
     if (instrumentId === 'bells') playBells(freq);
     else if (instrumentId === 'handpan') playHandpan(freq);
     else if (instrumentId === 'fmbell') playFMBell(freq);
+    else if (instrumentId === 'pad') playPad(freq);
+    else if (instrumentId === 'pluck') playPluck(freq);
     else if (instrumentId === 'formant') playFormant(freq);
     else if (instrumentId === 'djembe') playPercOrSample('djembe', freq, arguments[2], playDjembe);
     else if (instrumentId === 'cymbal') playPercOrSample('cymbal', freq, arguments[2], playCymbal);
@@ -1098,6 +1314,8 @@ const PAD_COLORS = {
   handpan: ['#e8c07d', '#9dc7a1'],
   fmbell: ['#c9a8e8', '#e8d47d'],
   formant: ['#e89dc4', '#c97da8'],
+  pad: ['#9db8e8', '#b89de8'],
+  pluck: ['#e8d47d', '#d4b8e8'],
   djembe: ['#c98a5d', '#8a5d3a'],
   cymbal: ['#d8c95d', '#b8a84a'],
   shaker: ['#9dc9b8', '#7db89d'],
@@ -1214,6 +1432,7 @@ function openInstrument(instId, noteObjs, place) {
    ================================================================ */
 
 const SORTEABLE = ['bells', 'handpan', 'fmbell', 'formant',
+                   'pad', 'pluck',
                    'djembe', 'cymbal', 'shaker', 'clap', 'timbales'];
 const sorteioBtn = document.getElementById('sorteioBtn');
 
