@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Orquestra de Bolso</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; min-height: 100vh; font-family: system-ui, sans-serif;
+    background: #12121a; color: #fff; overscroll-behavior: none;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  header { width: 100%; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; }
+  .connected { font-size: 13px; opacity: .8; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #f55; margin-right: 4px; }
+  .dot.on { background: #5f5; }
+  h1 { font-size: 18px; margin: 0; }
+  .screen { display: none; flex-direction: column; align-items: center; width: 100%; padding: 0 14px 20px; }
+  .screen.active { display: flex; }
+
+  button {
+    font-family: inherit; font-size: 16px; font-weight: 600;
+    background: #2a2a3a; color: #fff; border: 1px solid #444;
+    padding: 12px 16px; border-radius: 12px; cursor: pointer;
+  }
+  button:active { transform: scale(.97); }
+  .big { width: 100%; font-size: 18px; padding: 16px; }
+
+  .menu button { display: block; width: 100%; margin-bottom: 10px; }
+
+  .pads { display: grid; gap: 10px; width: 100%; max-width: 420px; margin-top: 12px; }
+  .pad {
+    padding: 28px 10px; border-radius: 16px; border: none; font-size: 20px;
+    color: #000; font-weight: 700; min-height: 90px;
+  }
+  .pads-4 { grid-template-columns: 1fr 1fr; }
+  .pads-8 { grid-template-columns: 1fr 1fr; }
+  .pad.flash { animation: flash .25s; }
+  @keyframes flash { 0% { filter: brightness(1.9); } 100% { filter: brightness(1); } }
+
+  .who { font-size: 13px; opacity: .7; margin-top: 12px; text-align: center; }
+
+  .admin-panel { width: 100%; max-width: 500px; }
+  .admin-panel h2 { font-size: 16px; margin: 18px 0 8px; }
+  .admin-panel .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .admin-panel .modes button { font-size: 14px; padding: 10px; }
+  .admin-panel .modes button.sel { background: #4a6bff; border-color: #4a6bff; }
+  .url-box {
+    background: #1e1e2e; border: 1px solid #3a3a4a; padding: 10px 12px;
+    border-radius: 10px; font-family: monospace; font-size: 15px;
+    word-break: break-all; margin-top: 8px;
+  }
+  .blocked { opacity: .35; pointer-events: none; }
+  .hint { font-size: 13px; opacity: .75; margin-top: 8px; text-align: center; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🎼 Orquestra de Bolso</h1>
+  <span class="connected"><span class="dot" id="dot"></span><span id="cnt">—</span></span>
+</header>
+
+<!-- TELA: escolha de instrumento -->
+<div class="screen active" id="screen-menu">
+  <div class="menu" style="max-width:420px;width:100%">
+    <p style="text-align:center;font-size:14px;opacity:.8">Escolha seu instrumento:</p>
+    <button class="big" onclick="choose('perc')">🥁 Percussão</button>
+    <button class="big" onclick="choose('mel')">🎹 Melodia</button>
+  </div>
+</div>
+
+<!-- TELA: pads de percussão -->
+<div class="screen" id="screen-perc">
+  <div class="pads pads-4">
+    <button class="pad" style="background:#ff6b6b" data-inst="perc" data-pad="0">BUMBO</button>
+    <button class="pad" style="background:#ffd93d" data-inst="perc" data-pad="1">CAIXA</button>
+    <button class="pad" style="background:#6bcB77" data-inst="perc" data-pad="2">TAMBORIM</button>
+    <button class="pad" style="background:#4d96ff" data-inst="perc" data-pad="3">CHOCALHO</button>
+  </div>
+  <button style="margin-top:16px;font-size:13px;padding:8px 14px" onclick="showMenu()">↩ trocar instrumento</button>
+</div>
+
+<!-- TELA: pads de melodia -->
+<div class="screen" id="screen-mel">
+  <div class="pads pads-8">
+    <button class="pad" style="background:#ff9f68" data-inst="mel" data-pad="0">DÓ</button>
+    <button class="pad" style="background:#ffce68" data-inst="mel" data-pad="1">RÉ</button>
+    <button class="pad" style="background:#e8ff68" data-inst="mel" data-pad="2">MI</button>
+    <button class="pad" style="background:#9fff68" data-inst="mel" data-pad="3">FÁ</button>
+    <button class="pad" style="background:#68ffd9" data-inst="mel" data-pad="4">SOL</button>
+    <button class="pad" style="background:#68b8ff" data-inst="mel" data-pad="5">LÁ</button>
+    <button class="pad" style="background:#b18cff" data-inst="mel" data-pad="6">SI</button>
+    <button class="pad" style="background:#ff6bd6" data-inst="mel" data-pad="7">DÓ↑</button>
+  </div>
+  <button style="margin-top:16px;font-size:13px;padding:8px 14px" onclick="showMenu()">↩ trocar instrumento</button>
+</div>
+
+<!-- TELA: painel do facilitador -->
+<div class="screen" id="screen-admin">
+  <div class="admin-panel">
+    <h2>Endereço para os participantes</h2>
+    <div class="url-box" id="urlBox">…</div>
+    <h2>Modo de jogo</h2>
+    <div class="modes">
+      <button data-mode="livre">🎉 Livre</button>
+      <button data-mode="grupos">👥 Grupos</button>
+      <button data-mode="um-grupo">🎯 1 grupo por vez</button>
+      <button data-mode="onda">🌊 Onda sonora</button>
+    </div>
+    <h2>Controle do modo "1 grupo por vez"</h2>
+    <div class="modes">
+      <button data-group="1">Grupo 1</button>
+      <button data-group="2">Grupo 2</button>
+    </div>
+    <h2>Dispositivos conectados</h2>
+    <div class="url-box" id="devCount">0</div>
+    <p class="hint">Modo Grupos: pergunte a metade da sala para escolher percussão e a outra metade melodia.<br>
+    Modo Onda: os pads ficam bloqueados e cada celular toca em sequência, varrendo a sala.</p>
+  </div>
+</div>
+
+<script>
+const params = new URLSearchParams(location.search);
+const isAdmin = params.get('admin') === '1';
+let myInstrument = null;
+let mode = 'livre';
+let activeGroup = 1;
+let myGroup = 1;
+const who = Math.floor(Math.random() * 1000);
+
+const screens = ['menu', 'perc', 'mel', 'admin'];
+function show(name) {
+  screens.forEach(s => document.getElementById('screen-' + s).classList.toggle('active', s === name));
+}
+function showMenu() { myInstrument = null; show('menu'); }
+
+/* ---------- Áudio (Web Audio API, sons sintetizados) ---------- */
+let ctx = null;
+function audio() { if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)(); if (ctx.state === 'suspended') ctx.resume(); return ctx; }
+
+function playSound(instrument, pad, delay = 0) {
+  const ac = audio();
+  const t = ac.currentTime + delay;
+  if (instrument === 'perc') {
+    if (pad === '0') kick(t);
+    else if (pad === '1') snare(t);
+    else if (pad === '2') tamborim(t);
+    else shaker(t);
+  } else {
+    const scale = [261.63, 293.66, 329.63, 349.23, 392, 440, 493.88, 523.25];
+    const f = scale[Number(pad)] || 261.63;
+    tone(t, f, 0.5);
+  }
+}
+function kick(t) {
+  const ac = audio();
+  const o = ac.createOscillator(), g = ac.createGain();
+  o.frequency.setValueAtTime(150, t);
+  o.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+  g.gain.setValueAtTime(1, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+  o.connect(g).connect(ac.destination);
+  o.start(t); o.stop(t + 0.3);
+}
+function snare(t) {
+  const ac = audio();
+  const buf = ac.createBuffer(1, 0.2 * ac.sampleRate, ac.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 8);
+  const src = ac.createBufferSource(); src.buffer = buf;
+  const g = ac.createGain(); g.gain.setValueAtTime(0.7, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+  const hp = ac.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 900;
+  src.connect(hp).connect(g).connect(ac.destination);
+  src.start(t);
+}
+function tamborim(t) {
+  const ac = audio();
+  [3800, 5100].forEach((f, i) => {
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.frequency.value = f;
+    g.gain.setValueAtTime(0.35 / (i + 1), t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
+    o.connect(g).connect(ac.destination);
+    o.start(t); o.stop(t + 0.1);
+  });
+}
+function shaker(t) {
+  const ac = audio();
+  const buf = ac.createBuffer(1, 0.08 * ac.sampleRate, ac.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 3);
+  const src = ac.createBufferSource(); src.buffer = buf;
+  const g = ac.createGain(); g.gain.value = 0.4;
+  const hp = ac.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 5000;
+  src.connect(hp).connect(g).connect(ac.destination);
+  src.start(t);
+}
+function tone(t, freq, dur) {
+  const ac = audio();
+  const o = ac.createOscillator(), g = ac.createGain();
+  o.type = 'triangle';
+  o.frequency.value = freq;
+  g.gain.setValueAtTime(0.001, t);
+  g.gain.exponentialRampToValueAtTime(0.5, t + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  o.connect(g).connect(ac.destination);
+  o.start(t); o.stop(t + dur + 0.05);
+}
+
+/* ---------- Conexão SSE ---------- */
+const es = new EventSource('/events');
+es.onopen = () => document.getElementById('dot').classList.add('on');
+es.onerror = () => document.getElementById('dot').classList.remove('on');
+es.onmessage = (e) => {
+  const msg = JSON.parse(e.data);
+  if (msg.event === 'count') document.getElementById('cnt').textContent = msg.count + ' 📱';
+  if (msg.event === 'devCount' || msg.event === undefined) {}
+  if (msg.event === 'play') {
+    const { instrument, pad } = msg;
+    if (mode === 'um-grupo' && msg.group !== activeGroup && msg.who !== who) return;
+    playSound(instrument, pad);
+    flashPad(instrument, pad);
+  }
+  if (msg.event === 'mode') {
+    mode = msg.mode;
+    document.querySelectorAll('[data-mode]').forEach(b =>
+      b.classList.toggle('sel', b.dataset.mode === mode));
+    updateBlocked();
+  }
+  if (msg.event === 'activeGroup') {
+    activeGroup = msg.activeGroup;
+    document.querySelectorAll('[data-group]').forEach(b =>
+      b.classList.toggle('sel', Number(b.dataset.group) === activeGroup));
+    updateBlocked();
+  }
+  if (msg.event === 'wave') {
+    if (msg.waveActive) startWave(); else stopWave();
+  }
+};
+
+/* ---------- Envio de toque ---------- */
+document.querySelectorAll('.pad').forEach(pad => {
+  pad.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    const { inst, pad: padId } = pad.dataset;
+    fetch('/play', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ instrument: inst, pad: padId, who, group: myGroup }),
+    });
+    playSound(inst, padId);
+    flashPad(inst, padId);
+  });
+});
+function flashPad(inst, padId) {
+  const el = document.querySelector(`.pad[data-inst="${inst}"][data-pad="${padId}"]`);
+  if (el && isVisible(el)) {
+    el.classList.remove('flash');
+    void el.offsetWidth;
+    el.classList.add('flash');
+  }
+}
+function isVisible(el) { return el.closest('.screen').classList.contains('active'); }
+
+/* ---------- Onda sonora ---------- */
+let waveTimer = null;
+function startWave() {
+  stopWave();
+  let step = 0;
+  const delay = (Number(location.hash.slice(1)) || (who % 40)) * 0.04;
+  waveTimer = setInterval(() => {
+    const instruments = ['perc', 'mel'];
+    const inst = instruments[step % 2];
+    const pad = String((step * 3) % 8);
+    playSound(inst === 'perc' ? 'perc' : 'mel', inst === 'perc' ? String(step % 4) : String(step % 8));
+    step++;
+  }, 400);
+  playSound('perc', '0', delay);
+}
+function stopWave() { if (waveTimer) { clearInterval(waveTimer); waveTimer = null; } }
+
+function updateBlocked() {
+  const blocked = mode === 'um-grupo' && myGroup !== activeGroup;
+  document.querySelectorAll('.pad').forEach(p => p.classList.toggle('blocked', blocked));
+}
+
+/* ---------- Fluxo ---------- */
+function choose(inst) {
+  myInstrument = inst;
+  myGroup = inst === 'perc' ? 1 : 2;
+  show(inst === 'perc' ? 'perc' : 'mel');
+}
+
+if (isAdmin) {
+  show('admin');
+  document.getElementById('urlBox').textContent =
+    location.protocol + '//' + location.host + '/';
+  document.getElementById('devCount').textContent = document.getElementById('cnt').textContent || '0';
+  document.querySelectorAll('[data-mode]').forEach(b => {
+    b.onclick = () => fetch('/mode', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: b.dataset.mode }),
+    });
+  });
+  document.querySelectorAll('[data-group]').forEach(b => {
+    b.onclick = () => fetch('/mode', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ activeGroup: Number(b.dataset.group) }),
+    });
+  });
+  const waveBtn = document.createElement('button');
+  waveBtn.className = 'big';
+  waveBtn.textContent = '🌊 Disparar onda sonora';
+  waveBtn.onclick = () => {
+    waveOn = !waveOn;
+    fetch('/mode', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ waveActive: waveOn }),
+    });
+  };
+  let waveOn = false;
+  document.querySelector('.admin-panel').insertBefore(waveBtn, document.querySelector('.hint'));
+}
+
+updateBlocked();
+</script>
+</body>
+</html>
