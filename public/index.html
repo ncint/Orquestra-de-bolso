@@ -408,7 +408,7 @@ const SESSION_CONFIG = {
       id: 'pad',
       label: '🌌 Pad',
       sub: 'Textura electrónica quente — nuvem de sintetizadores',
-      notes: [1, 4],
+      notes: [0, 4],
       octaveShift: 0,
     },
     pluck: {
@@ -772,6 +772,13 @@ const AudioEngine = (() => {
     const o = ctx.createOscillator();
     o.type = 'sawtooth';
     o.frequency.value = freq;
+    /* Vibrato suave à semelhança do theremin: LFO 5,5 Hz com
+       profundidade ~0,5% da fundamental. */
+    const vib = ctx.createOscillator();
+    const vibGain = ctx.createGain();
+    vib.frequency.value = 5.5;
+    vibGain.gain.value = freq * 0.005;
+    vib.connect(vibGain).connect(o.frequency);
     const lp = ctx.createBiquadFilter();
     lp.type = 'lowpass';
     lp.frequency.setValueAtTime(freq * 12, t);
@@ -782,7 +789,7 @@ const AudioEngine = (() => {
     g.gain.linearRampToValueAtTime(0.5, t + 0.008);
     g.gain.exponentialRampToValueAtTime(0.0001, t + 1.6);
     o.connect(lp).connect(g).connect(master);
-    o.start(t); o.stop(t + 1.8);
+    o.start(t); vib.start(t); o.stop(t + 1.8); vib.stop(t + 1.8);
     group.gains.push(g);
   }
 
