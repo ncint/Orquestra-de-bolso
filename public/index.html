@@ -98,6 +98,12 @@
   .menu-title .s {
     display: block; font-size: 13px; color: var(--text-dim); margin-top: 4px;
   }
+  .menu-title .scale-pill {
+    display: inline-block; margin-top: 12px; padding: 7px 14px;
+    font-size: 13px; font-weight: 600; color: var(--accent);
+    background: var(--accent-soft); border: 1px solid rgba(232,176,75,.35);
+    border-radius: 999px;
+  }
   .choose-btn {
     display: flex; align-items: center; gap: 14px;
     width: 100%; font-size: 18px; padding: 16px;
@@ -239,6 +245,7 @@
   <div class="menu-title">
     <span class="t">Orquestra de Bolso</span>
     <span class="s">Carrega no dado e recebe o teu instrumento</span>
+    <span class="scale-pill" id="menuScale"></span>
   </div>
   <button class="sorteio-btn" id="sorteioBtn">🎲 Sortear o meu instrumento</button>
   <!-- Escolha livre escondida por defeito (sorteio é a experiência
@@ -356,14 +363,14 @@
 
 const SCALES = {
   're-menor-natural': {
-    name: 'Ré menor natural',
+    name: 'Ré dórico',
     notes: [
       { name: 'Ré', freq: 293.66 },
       { name: 'Mi', freq: 329.63 },
       { name: 'Fá', freq: 349.23 },
       { name: 'Sol', freq: 392.00 },
       { name: 'Lá', freq: 440.00 },
-      { name: 'Sib', freq: 466.16 },
+      { name: 'Si', freq: 493.88 },
       { name: 'Dó', freq: 523.25 },
     ],
   },
@@ -1379,7 +1386,7 @@ function openInstrument(instId, noteObjs, place) {
 
   const scale = SCALES[SESSION_CONFIG.scale];
   ui.title.textContent = inst.label + (place ? ' · Lugar ' + place : '');
-  ui.sub.textContent = inst.sub + ' — escala: ' + scale.name;
+  ui.sub.textContent = inst.sub + ' — ' + scale.name + ' (' + scale.notes.map(n => n.name).join(' ') + ')';
 
   if (instId === 'theremin') {
     openTheremin(inst, scale);
@@ -1466,6 +1473,13 @@ const SORTEABLE = ['bells', 'handpan', 'fmbell', 'formant',
                    'pad', 'pluck',
                    'djembe', 'cymbal', 'shaker', 'clap', 'timbales'];
 const sorteioBtn = document.getElementById('sorteioBtn');
+
+/* Escala visível na página do dado. */
+const menuScaleEl = document.getElementById('menuScale');
+if (menuScaleEl) {
+  const s = SCALES[SESSION_CONFIG.scale];
+  menuScaleEl.textContent = '🎼 ' + s.name + ' — ' + s.notes.map(n => n.name).join(' ');
+}
 
 sorteioBtn.addEventListener('click', () => {
   const instId = SORTEABLE[Math.floor(Math.random() * SORTEABLE.length)];
