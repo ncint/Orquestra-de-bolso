@@ -81,6 +81,13 @@
   /* Ecrã de escolha */
   #screen-menu { justify-content: center; max-width: 460px; margin: 0 auto; }
   #screen-menu { gap: 2px; }
+  .sorteio-btn {
+    display: block; width: 100%; margin: 0 0 16px;
+    font-size: 18px; padding: 18px;
+    background: linear-gradient(135deg, #8a5d2b, #b8893a);
+    border-color: #e8b04b;
+    box-shadow: 0 4px 18px rgba(232,176,75,.25), inset 0 1px 0 rgba(255,255,255,.2);
+  }
   .menu-title {
     text-align: center; margin: 6px 0 14px;
   }
@@ -248,8 +255,9 @@
 <div class="screen active" id="screen-menu">
   <div class="menu-title">
     <span class="t">Orquestra de Bolso</span>
-    <span class="s">Escolhe o teu instrumento</span>
+    <span class="s">Sorteia o teu instrumento — ou escolhe livremente</span>
   </div>
+  <button class="sorteio-btn" id="sorteioBtn">🎲 Sortear o meu instrumento</button>
   <button class="choose-btn" data-inst="bells">
     <span class="ico">🔔</span>
     <span class="txt">Bells
@@ -1494,6 +1502,23 @@ function openInstrument(instId, noteObjs, place) {
   show('instrument');
 }
 
+/* ================================================================
+   SORTEIO — um link, um botão: cada participante carrega e recebe
+   aleatoriamente o seu instrumento. Fica guardado no telemóvel
+   (sorteado = "o meu instrumento"). Sorteios repetidos permitidos:
+   carregar de novo dá um instrumento novo (para re-jogar).
+   ================================================================ */
+
+const SORTEABLE = ['bells', 'handpan', 'fmbell', 'subbass', 'formant',
+                   'djembe', 'cymbal', 'shaker', 'clap', 'timbales'];
+const sorteioBtn = document.getElementById('sorteioBtn');
+
+sorteioBtn.addEventListener('click', () => {
+  const instId = SORTEABLE[Math.floor(Math.random() * SORTEABLE.length)];
+  try { localStorage.setItem('ob-sorteado', instId); } catch (_) {}
+  openInstrument(instId);
+});
+
 document.querySelectorAll('.choose-btn').forEach((b) => {
   b.addEventListener('click', () => openInstrument(b.dataset.inst));
 });
@@ -1847,6 +1872,16 @@ let placeAssignment = null;
 if (Number.isInteger(placeNum) && placeNum >= 1 && placeNum <= SESSION_CONFIG.places) {
   placeAssignment = assignPlace(placeNum);
   openPlace(placeAssignment);
+} else {
+  /* Sem lugar por QR: recuperar o instrumento sorteado neste
+     telemóvel, se existir — a pessoa recarrega e volta ao "seu"
+     instrumento sem voltar a sortear. */
+  try {
+    const saved = localStorage.getItem('ob-sorteado');
+    if (saved && SESSION_CONFIG.instruments[saved]) {
+      openInstrument(saved);
+    }
+  } catch (_) {}
 }
 
 function openPlace(assignment) {
