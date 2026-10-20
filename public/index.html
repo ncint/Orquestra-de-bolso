@@ -154,8 +154,8 @@ const SESSION_CONFIG = {
 const AudioEngine = (() => {
   let ctx = null;
   let master = null;
-  const MAX_VOICES = 14;
-  let activeVoices = [];
+  const MAX_NOTE_GROUPS = 8;
+  let noteGroups = [];
 
   function ensure() {
     if (!ctx) {
@@ -172,19 +172,32 @@ const AudioEngine = (() => {
     return !!(ctx && ctx.state === 'running');
   }
 
-  function trackVoice(gainNode, stopTime) {
-    activeVoices.push({ gainNode, stopTime });
-    if (activeVoices.length > MAX_VOICES) {
-      const now = ctx.currentTime;
-      const v = activeVoices.shift();
-      try {
-        v.gainNode.gain.cancelScheduledValues(now);
-        v.gainNode.gain.setTargetAtTime(0.0001, now, 0.05);
-      } catch (_) {}
-    }
+  function fadeOut(gainNode) {
+    const now = ctx.currentTime;
+    try {
+      gainNode.gain.cancelScheduledValues(now);
+      gainNode.gain.setValueAtTime(Math.max(gainNode.gain.value, 0.0001), now);
+      gainNode.gain.setTargetAtTime(0.0001, now, 0.06);
+    } catch (_) {}
   }
 
-  function partial(freq, t, peak, attack, decay, type) {
+  function pruneGroups() {
+    const now = ctx.currentTime;
+    noteGroups = noteGroups.filter((g) => g.stopTime > now);
+  }
+
+  function beginNote(stopTime) {
+    const group = { gains: [], stopTime };
+    pruneGroups();
+    noteGroups.push(group);
+    while (noteGroups.length > MAX_NOTE_GROUPS) {
+      const oldest = noteGroups.shift();
+      oldest.gains.forEach(fadeOut);
+    }
+    return group;
+  }
+
+  function partial(group, freq, t, peak, attack, decay, type) {
     const o = ctx.createOscillator();
     const g = ctx.createGain();
     o.type = type || 'sine';
@@ -195,7 +208,7 @@ const AudioEngine = (() => {
     o.connect(g).connect(master);
     o.start(t);
     o.stop(t + attack + decay + 0.1);
-    trackVoice(g, t + attack + decay);
+    group.gains.push(g);
   }
 
   /* Bells: parciais inarmónicos de sino (razões ~1 : 2.76 : 5.40 : 8.93),
@@ -203,11 +216,12 @@ const AudioEngine = (() => {
   function playBells(freq) {
     ensure();
     const t = ctx.currentTime + 0.005;
+    const group = beginNote(t + 5.1);
     const ratios  = [1.0, 2.76, 5.40, 8.93];
     const peaks   = [0.50, 0.28, 0.12, 0.06];
     const decays  = [5.0, 3.4, 2.0, 1.1];
     ratios.forEach((r, i) => {
-      partial(freq * r, t, peaks[i], 0.004, decays[i]);
+      partial(group, freq * r, t, peaks[i], 0.004, decays[i]);
     });
   }
 
@@ -218,6 +232,7 @@ const AudioEngine = (() => {
     const t = ctx.currentTime + 0.005;
 
     const attack = 0.03;
+    const group = beginNote(t + attack + 4.7);
 
     const o1 = ctx.createOscillator();
     const g1 = ctx.createGain();
@@ -228,10 +243,10 @@ const AudioEngine = (() => {
     g1.gain.exponentialRampToValueAtTime(0.0001, t + attack + 4.5);
     o1.connect(g1).connect(master);
     o1.start(t); o1.stop(t + attack + 4.7);
-    trackVoice(g1, t + attack + 4.5);
+    group.gains.push(g1);
 
-    partial(freq * 2.0, t, 0.16, attack, 2.8);
-    partial(freq * 3.0, t, 0.07, attack, 1.6);
+    partial(group, freq * 2.0, t, 0.16, attack, 2.8);
+    partial(group, freq * 3.0, t, 0.07, attack, 1.6);
 
     const o2 = ctx.createOscillator();
     const g2 = ctx.createGain();
@@ -242,7 +257,7 @@ const AudioEngine = (() => {
     g2.gain.exponentialRampToValueAtTime(0.0001, t + attack + 1.2);
     o2.connect(g2).connect(master);
     o2.start(t); o2.stop(t + attack + 1.4);
-    trackVoice(g2, t + attack + 1.2);
+    group.gains.push(g2);
   }
 
   function play(instrumentId, freq) {

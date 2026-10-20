@@ -2,7 +2,7 @@
 
 Aplicação musical colectiva para workshops: cada participante usa o seu
 telemóvel como instrumento musical. Versão 1 com dois timbres — **Bells**
-(sino musical) e **Handpan* — sobre a escala fixa de **Ré menor pentatónica**.
+(sino musical) e **Handpan** — sobre a escala fixa de **Ré menor pentatónica**.
 
 ## Como executar
 
@@ -41,7 +41,9 @@ telemóvel como instrumento musical. Versão 1 com dois timbres — **Bells**
     ataque rápido e ressonância longa.
   - **Handpan**: fundamental dominante com oitava/quinta suavizadas, ataque
     amortecido (~30 ms) e corpo tonal longo.
-- Limitação de vozes (máx. 14) para evitar acumulação em toques rápidos.
+- Limitação de notas simultâneas (máx. 8 grupos de nota, com purga das
+  terminadas) para evitar acumulação sonora em toques rápidos; ao exceder,
+  a nota mais antiga desvanece suavemente em vez de cortar.
 - Activação de áudio por interacção (requisito dos navegadores móveis):
   o ecrã indica "toca num botão para activar o som".
 - Contador de dispositivos ligados via SSE (opcional: se falhar, o
