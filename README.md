@@ -35,6 +35,14 @@ telemóvel como instrumento musical. Versão 1 com dois timbres — **Bells**
   - Handpan: **Fá** e **Dó**
 - Som **100% sintetizado localmente** com Web Audio API — sem ficheiros de
   áudio, sem URLs externas, sem Internet para reproduzir.
+- Interação em dois passos: **toca no botão para armar a nota** (fica com
+  contorno branco) e **agita o telemóvel para a tocar**. Tocar de novo no
+  botão desarma-o.
+- Detecção de agitação via acelerómetro (`devicemotion`), com limiar de
+  intensidade e pausa mínima entre disparos. No iOS a permissão de
+  movimento é pedida no momento de armar (requisito do Safari).
+- O telemóvel **não precisa de estar a tocar no ecrã** para produzir o som
+  depois da nota armada — ideal para gesto colectivo.
 - Decaimento natural: a nota continua a soar depois de levantar o dedo.
 - Timbres distintos:
   - **Bells**: parciais inarmónicos de sino (razões ~1 : 2.76 : 5.40 : 8.93),
