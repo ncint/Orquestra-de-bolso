@@ -632,6 +632,8 @@ function openInstrument(instId, noteObjs, place) {
     return;
   }
 
+  restorePadsIfTheremin();
+
   const octave = Math.pow(2, inst.octaveShift || 0);
   const notes = noteObjs || inst.notes.map((i) => ({
     name: scale.notes[i].name,
@@ -669,17 +671,6 @@ function openInstrument(instId, noteObjs, place) {
     ui.pads.appendChild(btn);
   });
 
-  if (instId !== 'theremin') {
-    const oldField = document.querySelector('[data-theremin]');
-    if (oldField) {
-      const pads = document.createElement('div');
-      pads.className = 'note-pads';
-      pads.id = 'pads';
-      oldField.replaceWith(pads);
-      ui.pads = pads;
-      ui.armHint.style.display = '';
-    }
-  }
   loadVolume();
   updateAudioStatus();
   show('instrument');
@@ -704,8 +695,27 @@ ui.backBtn.addEventListener('click', () => {
    segue o dedo; nota actual destaca-se.
    ================================================================ */
 
+let thereminLayoutHandler = null;
+
+function restorePadsIfTheremin() {
+  const oldField = document.querySelector('[data-theremin]');
+  if (oldField) {
+    if (thereminLayoutHandler) {
+      window.removeEventListener('resize', thereminLayoutHandler);
+      thereminLayoutHandler = null;
+    }
+    AudioEngine.stopTheremin();
+    const pads = document.createElement('div');
+    pads.className = 'note-pads';
+    pads.id = 'pads';
+    oldField.replaceWith(pads);
+    ui.pads = pads;
+    ui.armHint.style.display = '';
+  }
+}
+
 function openTheremin(inst, scale) {
-  ui.pads.innerHTML = '';
+  restorePadsIfTheremin();
   armedPad = null;
   ui.armHint.style.display = 'none';
 
@@ -717,10 +727,10 @@ function openTheremin(inst, scale) {
 
   const octave = Math.pow(2, inst.octaveShift || 0);
   const rows = [];
-  for (let oct = 0; oct >= -1; oct--) {
-    scale.notes.forEach((n, i) => {
+  for (let oct = 0; oct <= 1; oct++) {
+    scale.notes.forEach((n) => {
       rows.push({
-        name: n.name + (oct === -1 ? '↑' : ''),
+        name: n.name + (oct === 1 ? '↑' : ''),
         freq: n.freq * octave * Math.pow(2, oct),
       });
     });
@@ -796,8 +806,10 @@ function openTheremin(inst, scale) {
   field.addEventListener('pointercancel', end);
 
   ui.pads.replaceWith(field);
+  ui.pads = field;
   field.dataset.theremin = '1';
   layout();
+  thereminLayoutHandler = layout;
   window.addEventListener('resize', layout);
 }
 
