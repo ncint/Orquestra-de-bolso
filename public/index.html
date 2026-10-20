@@ -629,6 +629,9 @@ function openInstrument(instId, noteObjs, place) {
 
   if (instId === 'theremin') {
     openTheremin(inst, scale);
+    loadVolume();
+    updateAudioStatus();
+    show('instrument');
     return;
   }
 
