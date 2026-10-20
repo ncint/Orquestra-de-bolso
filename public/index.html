@@ -1283,7 +1283,7 @@ const SHAKE_COOLDOWN = 0.25;
 /* Percussão (djembe) pede gesto mais decidido: limiar mais alto e
    pausa maior entre disparos, para dar controlabilidade. */
 const SHAKE_THRESHOLD_PERC = 8;
-const SHAKE_COOLDOWN_PERC = 0.3;
+const SHAKE_COOLDOWN_PERC = 0.22;
 let lastShakeTime = 0;
 let motionBound = false;
 
@@ -1293,10 +1293,14 @@ function shakeParams() {
     : { th: SHAKE_THRESHOLD, cd: SHAKE_COOLDOWN };
 }
 
+/* Detecção por TRANSIÇÃO (crossing): dispara quando a intensidade
+   CRUZA o limiar de baixo para cima — cada golpe do abano (ida E
+   volta do tchau-tchau) gera um toque. Cooldown adaptativo:
+   baixo para percussão (0,14 s ≈ 4 toques/s = 240 BPM em colcheias),
+   permitindo ritmos rápidos; maior nos naipes tonais. */
+let shakeWasHigh = false;
+
 function onMotion(e) {
-  /* Preferir aceleração LINEAR (sem gravidade) — mede directamente
-     a intensidade do abano. Fallback: accelerationIncludingGravity
-     com subtracção aproximada da gravidade. */
   let mag;
   const lin = e.acceleration;
   if (lin && lin.x != null) {
@@ -1309,10 +1313,12 @@ function onMotion(e) {
   }
   const now = Date.now() / 1000;
   const { th, cd } = shakeParams();
-  if (mag > th && now - lastShakeTime > cd) {
+  const isHigh = mag > th;
+  if (isHigh && !shakeWasHigh && now - lastShakeTime > cd) {
     lastShakeTime = now;
     playArmed();
   }
+  shakeWasHigh = isHigh;
 }
 
 function bindMotion() {
