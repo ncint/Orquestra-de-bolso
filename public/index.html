@@ -236,7 +236,7 @@ const SESSION_CONFIG = {
       id: 'theremin',
       label: '🌌 Theremin',
       sub: 'Arrasta o dedo para construir melodias — só toca enquanto tocas',
-      octaveShift: 1,
+      octaveShift: 0,
     },
   },
 };
@@ -276,6 +276,8 @@ function assignPlace(place) {
 const AudioEngine = (() => {
   let ctx = null;
   let master = null;
+  let reverb = null;
+  let reverbGain = null;
   const MAX_NOTE_GROUPS = 8;
   let noteGroups = [];
 
@@ -284,7 +286,24 @@ const AudioEngine = (() => {
       ctx = new (window.AudioContext || window.webkitAudioContext)();
       master = ctx.createGain();
       master.gain.value = 0.9;
+      /* Reverb global: resposta ao impulso sintetizada (ruído com
+         decaimento exponencial, 2,6 s) — sem ficheiros externos.
+         Mix ~18% para dar espaço sem enlamear. */
+      const revLen = Math.floor(ctx.sampleRate * 2.6);
+      const revBuf = ctx.createBuffer(2, revLen, ctx.sampleRate);
+      for (let ch = 0; ch < 2; ch++) {
+        const d = revBuf.getChannelData(ch);
+        for (let i = 0; i < d.length; i++) {
+          d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2.8);
+        }
+      }
+      reverb = ctx.createConvolver();
+      reverb.buffer = revBuf;
+      reverbGain = ctx.createGain();
+      reverbGain.gain.value = 0.18;
+      reverb.connect(reverbGain).connect(ctx.destination);
       master.connect(ctx.destination);
+      master.connect(reverb);
     }
     if (ctx.state === 'suspended') ctx.resume();
     return ctx;
@@ -483,9 +502,10 @@ const AudioEngine = (() => {
     vib.frequency.value = 5.5;
     vibGain.gain.value = freq * 0.006;
     lp.type = 'lowpass';
-    lp.frequency.value = Math.max(freq * 6, 1200);
+    lp.frequency.value = Math.max(freq * 2.5, 600);
+    lp.Q.value = 0.5;
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.linearRampToValueAtTime(0.5, t + 0.08);
+    g.gain.linearRampToValueAtTime(0.38, t + 0.18);
     vib.connect(vibGain).connect(o.frequency);
     o.connect(lp).connect(g).connect(master);
     o.start(t); vib.start(t);
@@ -497,7 +517,7 @@ const AudioEngine = (() => {
     const t = ctx.currentTime;
     theremin.o.frequency.setTargetAtTime(freq, t, 0.03);
     theremin.vibGain.gain.setTargetAtTime(freq * 0.006, t, 0.03);
-    theremin.lp.frequency.setTargetAtTime(Math.max(freq * 6, 1200), t, 0.05);
+    theremin.lp.frequency.setTargetAtTime(Math.max(freq * 2.5, 600), t, 0.05);
   }
 
   function stopTheremin() {
