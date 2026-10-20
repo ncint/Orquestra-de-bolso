@@ -1890,17 +1890,11 @@ let placeAssignment = null;
 if (Number.isInteger(placeNum) && placeNum >= 1 && placeNum <= SESSION_CONFIG.places) {
   placeAssignment = assignPlace(placeNum);
   openPlace(placeAssignment);
-} else {
-  /* Sem lugar por QR: recuperar o instrumento sorteado neste
-     telemóvel, se existir — a pessoa recarrega e volta ao "seu"
-     instrumento sem voltar a sortear. */
-  try {
-    const saved = localStorage.getItem('ob-sorteado');
-    if (saved && SESSION_CONFIG.instruments[saved]) {
-      openInstrument(saved);
-    }
-  } catch (_) {}
 }
+/* Sem lugar por QR: mostrar sempre a página do dado — mesmo quem já
+   tem instrumento sorteado volta a vê-lo. O participante carrega no
+   dado e recebe um instrumento (novo sorteio). O anterior deixa de
+   ser relevante: a experiência correcta é sempre passar pelo dado. */
 
 function openPlace(assignment) {
   openInstrument(assignment.instrumentId, assignment.notes, assignment.place);
