@@ -118,10 +118,10 @@
     touch-action: none; user-select: none;
   }
   .theremin-note {
-    position: absolute; left: 0; right: 0; text-align: center;
+    position: absolute; top: 0; bottom: 0; text-align: center;
     font-size: 14px; font-weight: 600; color: rgba(255,255,255,.55);
-    border-top: 1px dashed rgba(255,255,255,.18);
     pointer-events: none;
+    display: flex; align-items: center; justify-content: center;
   }
   .theremin-note.sel { color: #fff; background: rgba(255,255,255,.08); }
   .groove-controls {
@@ -1192,6 +1192,9 @@ function openTheremin(inst, scale) {
     });
   }
 
+  /* Como no Etherpad: pitch na HORIZONTAL (arrastar para os lados =
+     melodia), brilho na VERTICAL (cima = mais brilhante).
+     As colunas de nota são dispostas lado a lado. */
   const noteEls = [];
   rows.forEach((row, i) => {
     const el = document.createElement('div');
@@ -1202,20 +1205,20 @@ function openTheremin(inst, scale) {
   });
 
   const layout = () => {
-    const h = field.clientHeight;
-    const step = h / rows.length;
+    const w = field.clientWidth;
+    const step = w / rows.length;
     noteEls.forEach((el, i) => {
-      el.style.top = (i * step) + 'px';
-      el.style.height = step + 'px';
-      el.style.lineHeight = step + 'px';
+      el.style.left = (i * step) + 'px';
+      el.style.width = step + 'px';
+      el.style.borderLeft = '1px dashed rgba(255,255,255,.18)';
     });
   };
 
-  const freqFromY = (clientY) => {
+  const freqFromX = (clientX) => {
     const rect = field.getBoundingClientRect();
-    const step = rect.height / rows.length;
+    const step = rect.width / rows.length;
     const idx = Math.max(0, Math.min(rows.length - 1,
-      Math.floor((clientY - rect.top) / step)));
+      Math.floor((clientX - rect.left) / step)));
     return { freq: rows[idx].freq, idx };
   };
 
@@ -1230,7 +1233,7 @@ function openTheremin(inst, scale) {
     e.preventDefault();
     AudioEngine.ensure();
     updateAudioStatus();
-    const { freq, idx } = freqFromY(e.clientY);
+    const { freq, idx } = freqFromX(e.clientX);
     AudioEngine.startTheremin(freq);
     lockPortrait();
     playing = true;
@@ -1245,16 +1248,16 @@ function openTheremin(inst, scale) {
     if (!playing) return;
     spot.style.left = e.clientX + 'px';
     spot.style.top = e.clientY + 'px';
-    const { freq, idx } = freqFromY(e.clientY);
+    const { freq, idx } = freqFromX(e.clientX);
     if (idx !== lastIdx) {
       AudioEngine.setThereminFreq(freq);
       lastIdx = idx;
       highlight(idx);
     }
-    /* Drift: X do dedo molda o brilho (esquerda = escuro,
-       direita = brilhante). */
+    /* Drift: Y do dedo molda o brilho (cima = brilhante,
+       baixo = escuro), como no Etherpad. */
     const rect = field.getBoundingClientRect();
-    AudioEngine.setThereminTone((e.clientX - rect.left) / rect.width);
+    AudioEngine.setThereminTone(1 - (e.clientY - rect.top) / rect.height);
   });
   const end = () => {
     if (!playing) return;
