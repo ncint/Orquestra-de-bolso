@@ -2,8 +2,16 @@
 <html lang="pt-PT">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="refresh" content="0; url=public/index.html">
 <title>Orquestra de Bolso</title>
+<script>
+/* Transportar a query string (?config=1, ?lugar=N, ?v=...) no
+   redirect para public/index.html — sem isto, o modo seleção e
+   os lugares perdiam os parâmetros. */
+(function () {
+  var q = location.search || '';
+  location.replace('public/index.html' + q);
+})();
+</script>
 </head>
 <body>
 <p>A abrir… <a href="public/index.html">Orquestra de Bolso</a></p>
