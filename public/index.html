@@ -620,6 +620,16 @@ const AudioEngine = (() => {
     theremin.lp.frequency.setTargetAtTime(f, t, 0.08);
   }
 
+  /* Volume expressivo (antena de volume do theremin): eixo horizontal
+     do campo, 0 = quase silêncio, 1 = volume pleno. Curva suave. */
+  function setThereminVolume(x01) {
+    if (!theremin) return;
+    const t = ctx.currentTime;
+    const v = Math.max(0, Math.min(1, x01));
+    const curve = v * v; /* quadrática: mais controlo nos volumes baixos */
+    theremin.g.gain.setTargetAtTime(0.001 + curve * 0.5, t, 0.05);
+  }
+
   function stopTheremin() {
     if (!theremin) return;
     const th = theremin;
@@ -786,7 +796,7 @@ const AudioEngine = (() => {
 
   return {
     ensure, isReady, play, setVolume,
-    startTheremin, setThereminFreq, setThereminTone, stopTheremin,
+    startTheremin, setThereminFreq, setThereminTone, setThereminVolume, stopTheremin,
     startGroove, stopGroove, setGroovePattern, setGrooveBpm,
     groovePatternNames,
   };
@@ -1235,6 +1245,9 @@ function openTheremin(inst, scale) {
     updateAudioStatus();
     const { freq, idx } = freqFromX(e.clientX);
     AudioEngine.startTheremin(freq);
+    const rect = field.getBoundingClientRect();
+    AudioEngine.setThereminVolume((e.clientX - rect.left) / rect.width);
+    AudioEngine.setThereminTone(1 - (e.clientY - rect.top) / rect.height);
     lockPortrait();
     playing = true;
     lastIdx = idx;
@@ -1258,6 +1271,9 @@ function openTheremin(inst, scale) {
        baixo = escuro), como no Etherpad. */
     const rect = field.getBoundingClientRect();
     AudioEngine.setThereminTone(1 - (e.clientY - rect.top) / rect.height);
+    /* Volume expressivo: X do dedo = antena de volume
+       (esquerda = suave, direita = pleno). */
+    AudioEngine.setThereminVolume((e.clientX - rect.left) / rect.width);
   });
   const end = () => {
     if (!playing) return;
