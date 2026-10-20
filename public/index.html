@@ -7,6 +7,14 @@
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; }
+  @media (orientation: landscape) {
+    body::after {
+      content: '📵 Roda o telemóvel para a vertical';
+      position: fixed; inset: 0; background: #171a24; z-index: 99;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; font-weight: 600;
+    }
+  }
   body {
     margin: 0; font-family: system-ui, sans-serif;
     background: #171a24; color: #fff; overscroll-behavior: none;
@@ -177,9 +185,9 @@ const SESSION_CONFIG = {
     subbass: {
       id: 'subbass',
       label: '🌊 Sub Bass',
-      sub: 'Grave profundo com queda de pitch — fundação',
+      sub: 'Grave com queda de pitch e textura de ruído — fundação',
       notes: [0, 2],
-      octaveShift: -2,  // duas oitavas abaixo
+      octaveShift: -1,  // uma oitava abaixo: audível em colunas de telemóvel
     },
     formant: {
       id: 'formant',
@@ -357,8 +365,9 @@ const AudioEngine = (() => {
     group.gains.push(g);
   }
 
-  /* Sub Bass: seno puro com queda de pitch no ataque (tipo 808),
-     decaimento longo — fundação física do grave. */
+  /* Sub Bass: seno com queda de pitch (tipo 808) + camada de ruído
+     filtrado no ataque, para ser audível nas colunas pequenas dos
+     telemóveis (que não reproduzem infra-graves). */
   function playSubBass(freq) {
     ensure();
     const t = ctx.currentTime + 0.005;
@@ -370,11 +379,33 @@ const AudioEngine = (() => {
     o.frequency.setValueAtTime(freq * 1.5, t);
     o.frequency.exponentialRampToValueAtTime(freq, t + 0.05);
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.linearRampToValueAtTime(0.75, t + 0.01);
+    g.gain.linearRampToValueAtTime(0.8, t + 0.01);
     g.gain.exponentialRampToValueAtTime(0.0001, t + 3.2);
     o.connect(g).connect(master);
     o.start(t); o.stop(t + 3.5);
     group.gains.push(g);
+
+    /* Textura: ruído branco com filtro bandpass em torno da
+       fundamental, ataque curto e decaimento próprio — dá
+       "corpo audível" ao sub nas colunas pequenas. */
+    const buf = ctx.createBuffer(1, 0.9 * ctx.sampleRate, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) {
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2.5);
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.setValueAtTime(Math.max(freq * 4, 180), t);
+    bp.frequency.exponentialRampToValueAtTime(Math.max(freq * 2, 120), t + 0.35);
+    bp.Q.value = 1.2;
+    const ng = ctx.createGain();
+    ng.gain.setValueAtTime(0.5, t);
+    ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.85);
+    src.connect(bp).connect(ng).connect(master);
+    src.start(t);
+    group.gains.push(ng);
   }
 
   /* Formant: dente-de-serra através de dois bandpass (vogal "a") —
