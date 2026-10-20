@@ -60,6 +60,13 @@
                   border-radius: 10px; margin: 0 auto 12px; width: fit-content; }
   .audio-status.off { background: #5d3a3a; color: #ffb0b0; }
   .audio-status.on  { background: #2e4a34; color: #a8e6b0; display: none; }
+  .motion-btn {
+    display: block; width: 100%; margin: 0 auto 10px;
+    font-size: 15px; padding: 12px; max-width: 420px;
+    background: #5d4a8f; border-color: #8f7ac9;
+  }
+  .motion-btn.ok { background: #2e4a34; border-color: #4a9b6d; }
+  .motion-btn.err { background: #5d3a3a; border-color: #9b4a4a; }
 
   .note-pads { display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
                flex: 1 1 auto; min-height: 0; }
@@ -183,6 +190,9 @@
   <div class="audio-status off" id="audioOff">🔇 Toca num botão para activar o som</div>
   <div class="audio-status on" id="audioOn">🔊 Som activo</div>
   <p class="arm-hint" id="armHint">Toca numa nota para armar · Agita o telemóvel para tocar</p>
+  <button class="motion-btn" id="motionBtn" style="display:none">
+    📳 Ativar agitar no iPhone
+  </button>
   <div class="note-pads" id="pads"></div>
   <div class="volume-row">
     <label for="volSlider">🔊 Volume</label>
@@ -755,6 +765,7 @@ function playArmed() {
   AudioEngine.ensure();
   updateAudioStatus();
   AudioEngine.play(currentInstrument, freq, pad);
+  AudioEngine.play(currentInstrument, freq, pad);
   armedPad.classList.remove('ringing');
   void armedPad.offsetWidth;
   armedPad.classList.add('ringing');
@@ -796,16 +807,39 @@ function bindMotion() {
   window.addEventListener('devicemotion', onMotion);
 }
 
-function requestMotionPermission() {
-  if (motionBound) return;
+function motionSupported() {
+  return typeof window.DeviceMotionEvent === 'function';
+}
+
+function motionNeedsExplicitPermission() {
+  return motionSupported() &&
+    typeof window.DeviceMotionEvent.requestPermission === 'function';
+}
+
+function requestMotionPermission(onResult) {
+  if (motionBound) {
+    if (onResult) onResult('already');
+    return;
+  }
   const DME = window.DeviceMotionEvent;
-  if (typeof DME !== 'function') return;
+  if (!motionSupported()) {
+    if (onResult) onResult('unsupported');
+    return;
+  }
   if (typeof DME.requestPermission === 'function') {
     DME.requestPermission().then((p) => {
-      if (p === 'granted') bindMotion();
-    }).catch(() => {});
+      if (p === 'granted') {
+        bindMotion();
+        if (onResult) onResult('granted');
+      } else {
+        if (onResult) onResult('denied');
+      }
+    }).catch(() => {
+      if (onResult) onResult('error');
+    });
   } else {
     bindMotion();
+    if (onResult) onResult('granted');
   }
 }
 
@@ -886,7 +920,7 @@ function openInstrument(instId, noteObjs, place) {
         armedPad = btn;
         btn.classList.add('armed');
       }
-      requestMotionPermission();
+      requestMotionPermission((r) => { if (r === 'granted') updateMotionBtn(); });
       lockPortrait();
     });
     ['pointerup', 'pointercancel', 'pointerleave'].forEach((ev) => {
@@ -898,6 +932,7 @@ function openInstrument(instId, noteObjs, place) {
 
   loadVolume();
   updateAudioStatus();
+  updateMotionBtn();
   show('instrument');
 }
 
@@ -1136,6 +1171,40 @@ function openTheremin(inst, scale) {
   thereminLayoutHandler = layout;
   window.addEventListener('resize', layout);
 }
+
+/* Botão explícito de activação de movimento (iOS/Safari e Chrome iOS):
+   o pedido de permissão tem de nascer de um gesto claro do utilizador
+   com feedback visível — nem sempre o toque de armar chega a mostrar
+   o diálogo do sistema. */
+const motionBtn = document.getElementById('motionBtn');
+
+function updateMotionBtn() {
+  if (motionBound) {
+    motionBtn.style.display = 'none';
+    return;
+  }
+  if (motionNeedsExplicitPermission()) {
+    motionBtn.style.display = 'block';
+    motionBtn.className = 'motion-btn';
+    motionBtn.textContent = '📳 Ativar agitar no iPhone';
+  }
+}
+
+motionBtn.addEventListener('click', () => {
+  requestMotionPermission((result) => {
+    if (result === 'granted' || result === 'already') {
+      motionBtn.classList.add('ok');
+      motionBtn.textContent = '✓ Agitar ativado';
+      setTimeout(() => { motionBtn.style.display = 'none'; }, 1600);
+    } else if (result === 'denied') {
+      motionBtn.classList.add('err');
+      motionBtn.textContent = '✗ Permissão recusada — vê Definições > Safari';
+    } else {
+      motionBtn.classList.add('err');
+      motionBtn.textContent = '✗ Não foi possível ativar';
+    }
+  });
+});
 
 const volSlider = document.getElementById('volSlider');
 function volumeKey() {
