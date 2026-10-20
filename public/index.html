@@ -1179,11 +1179,11 @@ function playArmed() {
 /* Agitar o telemóvel dispara a nota armada.
    No iOS a permissão de movimento tem de ser pedida num gesto
    do utilizador — por isso é pedida ao armar a nota. */
-const SHAKE_THRESHOLD = 15;
+const SHAKE_THRESHOLD = 8;
 const SHAKE_COOLDOWN = 0.25;
 /* Percussão (djembe) pede gesto mais decidido: limiar mais alto e
    pausa maior entre disparos, para dar controlabilidade. */
-const SHAKE_THRESHOLD_PERC = 15;
+const SHAKE_THRESHOLD_PERC = 8;
 const SHAKE_COOLDOWN_PERC = 0.3;
 let lastShakeTime = 0;
 let motionBound = false;
@@ -1195,9 +1195,19 @@ function shakeParams() {
 }
 
 function onMotion(e) {
-  const a = e.accelerationIncludingGravity;
-  if (!a || a.x == null) return;
-  const mag = Math.sqrt((a.x || 0) ** 2 + (a.y || 0) ** 2 + (a.z || 0) ** 2);
+  /* Preferir aceleração LINEAR (sem gravidade) — mede directamente
+     a intensidade do abano. Fallback: accelerationIncludingGravity
+     com subtracção aproximada da gravidade. */
+  let mag;
+  const lin = e.acceleration;
+  if (lin && lin.x != null) {
+    mag = Math.sqrt((lin.x || 0) ** 2 + (lin.y || 0) ** 2 + (lin.z || 0) ** 2);
+  } else {
+    const a = e.accelerationIncludingGravity;
+    if (!a || a.x == null) return;
+    const total = Math.sqrt((a.x || 0) ** 2 + (a.y || 0) ** 2 + (a.z || 0) ** 2);
+    mag = Math.abs(total - 9.8) * 1.2;
+  }
   const now = Date.now() / 1000;
   const { th, cd } = shakeParams();
   if (mag > th && now - lastShakeTime > cd) {
