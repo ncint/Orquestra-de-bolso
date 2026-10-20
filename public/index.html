@@ -571,6 +571,25 @@ const AudioEngine = (() => {
       reverbGain = ctx.createGain();
       reverbGain.gain.value = 0.18;
       reverb.connect(reverbGain).connect(ctx.destination);
+      /* EQ espectral para colunas de telemóvel: as colunas pequenas
+         reproduzem ~300 Hz-8 kHz. O corte de sub-grave (highpass
+         120 Hz, 12 dB/oct) remove energia inaudível que só rouba
+         headroom; o shelf de presença (+3,5 dB a 2,2 kHz) abre o
+         espectro na zona onde estas colunas respondem melhor,
+         dando brilho sem aumentar o pico. */
+      const hp = ctx.createBiquadFilter();
+      hp.type = 'highpass';
+      hp.frequency.value = 120;
+      hp.Q.value = 0.7;
+      const presence = ctx.createBiquadFilter();
+      presence.type = 'peaking';
+      presence.frequency.value = 2200;
+      presence.Q.value = 0.9;
+      presence.gain.value = 3.5;
+      const air = ctx.createBiquadFilter();
+      air.type = 'highshelf';
+      air.frequency.value = 6500;
+      air.gain.value = 2;
       /* Limitador suave no master: evita clipping (estalidos) quando
          várias vozes + reverb + volume do slider somam acima de 1.0. */
       const limiter = ctx.createDynamicsCompressor();
@@ -579,7 +598,10 @@ const AudioEngine = (() => {
       limiter.ratio.value = 12;
       limiter.attack.value = 0.003;
       limiter.release.value = 0.15;
-      master.connect(limiter).connect(ctx.destination);
+      master.connect(hp);
+      hp.connect(presence);
+      presence.connect(air);
+      air.connect(limiter).connect(ctx.destination);
       master.connect(reverb);
     }
     if (ctx.state === 'suspended') ctx.resume();
