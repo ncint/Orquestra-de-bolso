@@ -221,7 +221,7 @@
   </button>
   <button class="choose-btn" data-inst="theremin">
     🕊 Theremin de Paz
-    <small>Dois dedos em simultâneo — quantizado à escala</small>
+    <small>Começa com um dedo — depois experimenta dois</small>
   </button>
 </div>
 
@@ -352,7 +352,7 @@ const SESSION_CONFIG = {
     theremin: {
       id: 'theremin',
       label: '🕊 Theremin de Paz',
-      sub: 'Dois dedos = duas notas — horizontal: nota · vertical: volume',
+      sub: 'Um dedo para começar · dois em simultâneo — horizontal: nota · vertical: volume',
       octaveShift: 0,
     },
     groove: {
@@ -671,6 +671,11 @@ const AudioEngine = (() => {
     lp.connect(g);
     lp.connect(form).connect(formGain).connect(g);
     g.connect(gVol).connect(master);
+    /* Send de reverb próprio do theremin, mais presente que o mix
+       global (18%): 40%. */
+    const revSend = ctx.createGain();
+    revSend.gain.value = 0.4;
+    gVol.connect(revSend).connect(reverb);
     o.start(t); o2.start(t); vib.start(t);
     const voice = { o, o2, g, gVol, vib, vibGain, lp };
     const key = pointerId == null ? '_solo' : String(pointerId);
@@ -832,7 +837,7 @@ const AudioEngine = (() => {
     hp.type = 'highpass';
     hp.frequency.value = Math.max(freq * 2, 3000);
     const g = ctx.createGain();
-    g.gain.setValueAtTime(0.55, t);
+    g.gain.setValueAtTime(0.85, t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     src.connect(hp).connect(g).connect(master);
     src.start(t);
@@ -858,7 +863,7 @@ const AudioEngine = (() => {
     bp.frequency.value = Math.max(freq * 6, 5000);
     bp.Q.value = 1.0;
     const g = ctx.createGain();
-    g.gain.value = 0.5;
+    g.gain.value = 0.85;
     src.connect(bp).connect(g).connect(master);
     src.start(t);
     group.gains.push(g);
@@ -884,7 +889,7 @@ const AudioEngine = (() => {
       bp.frequency.value = Math.max(freq * 3, 1200);
       bp.Q.value = 0.9;
       const g = ctx.createGain();
-      g.gain.value = 0.45 / (k + 1);
+      g.gain.value = 0.75 / (k + 1);
       src.connect(bp).connect(g).connect(master);
       src.start(t + offset);
       group.gains.push(g);
@@ -913,7 +918,7 @@ const AudioEngine = (() => {
       bp.frequency.exponentialRampToValueAtTime(freq * 1.8, t + 0.1);
       bp.Q.value = 1.8;
       const ng = ctx.createGain();
-      ng.gain.value = 0.6;
+      ng.gain.value = 0.9;
       src.connect(bp).connect(ng).connect(master);
       src.start(t);
       group.gains.push(ng);
@@ -923,7 +928,7 @@ const AudioEngine = (() => {
       o.type = 'triangle';
       o.frequency.setValueAtTime(freq * 2.2, t);
       o.frequency.exponentialRampToValueAtTime(freq * 1.9, t + 0.04);
-      g.gain.setValueAtTime(0.5, t);
+      g.gain.setValueAtTime(0.85, t);
       g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
       o.connect(g).connect(master);
       o.start(t); o.stop(t + 0.45);
@@ -1095,7 +1100,7 @@ const SHAKE_THRESHOLD = 15;
 const SHAKE_COOLDOWN = 0.25;
 /* Percussão (djembe) pede gesto mais decidido: limiar mais alto e
    pausa maior entre disparos, para dar controlabilidade. */
-const SHAKE_THRESHOLD_PERC = 17;
+const SHAKE_THRESHOLD_PERC = 15;
 const SHAKE_COOLDOWN_PERC = 0.3;
 let lastShakeTime = 0;
 let motionBound = false;
