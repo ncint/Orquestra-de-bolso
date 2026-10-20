@@ -1,38 +1,83 @@
-# 🎼 Orquestra de Bolso
+# 🎼 Orquestra de Bolso — Bells & Handpan
 
-Web app de criação musical colaborativa para workshops: cada celular vira um
-instrumento e todos tocam juntos em tempo real, na mesma rede Wi-Fi.
+Aplicação musical colectiva para workshops: cada participante usa o seu
+telemóvel como instrumento musical. Versão 1 com dois timbres — **Bells**
+(sino musical) e **Handpan* — sobre a escala fixa de **Ré menor pentatónica**.
 
-## Como usar no workshop
+## Como executar
 
-1. **Prepare a rede**: conecte seu router à internet (opcional) e os celulares
-   dos participantes ao Wi-Fi dele. O computador que roda o servidor deve estar
-   na mesma rede (cabo no router ou no mesmo Wi-Fi).
+1. Instalar [Node.js](https://nodejs.org) (18 ou superior). Não há mais
+   dependências: nenhuma instalação `npm` é necessária.
 
-2. **Rode o servidor** no seu computador (precisa de Node.js 18+):
+2. Na pasta do projecto:
 
    ```bash
    node server.js
    ```
 
-   Ele imprime no terminal o endereço para os celulares, algo como
-   `http://192.168.0.10:3000`.
+3. O terminal mostra o endereço local, por exemplo:
 
-3. **Participantes**: cada um abre esse endereço no navegador e escolhe
-   Percussão ou Melodia — nada para instalar.
+   ```
+   Nos celulares:  http://192.168.0.10:3000
+   ```
 
-4. **Você (facilitador)**: abra `http://<seu-ip>:3000/?admin=1` para o painel
-   de controle com os modos de jogo.
+4. Abrir esse endereço no navegador do telemóvel, escolher **Bells** ou
+   **Handpan** e tocar. Nada para instalar nos telemóveis.
 
-## Modos de jogo
+## Versão 1 — o que está implementado
 
-- **Livre** — todos tocam como quiserem.
-- **Grupos** — metade da sala em percussão, metade em melodia.
-- **1 grupo por vez** — só o grupo ativo toca (bom para exercitar escuta e espera).
-- **Onda sonora** — varredura sonora pela sala.
+- Dois instrumentos, cada um com **2 botões de nota** grandes (telemóvel em
+  orientação vertical).
+- **Escala fixa**: Ré menor pentatónica (Ré – Fá – Sol – Lá – Dó).
+- Atribuições (configuração central em `public/index.html`,
+  `SESSION_CONFIG`):
+  - Bells: **Ré** e **Lá**
+  - Handpan: **Fá** e **Dó**
+- Som **100% sintetizado localmente** com Web Audio API — sem ficheiros de
+  áudio, sem URLs externas, sem Internet para reproduzir.
+- Decaimento natural: a nota continua a soar depois de levantar o dedo.
+- Timbres distintos:
+  - **Bells**: parciais inarmónicos de sino (razões ~1 : 2.76 : 5.40 : 8.93),
+    ataque rápido e ressonância longa.
+  - **Handpan**: fundamental dominante com oitava/quinta suavizadas, ataque
+    amortecido (~30 ms) e corpo tonal longo.
+- Limitação de vozes (máx. 14) para evitar acumulação em toques rápidos.
+- Activação de áudio por interacção (requisito dos navegadores móveis):
+  o ecrã indica "toca num botão para activar o som".
+- Contador de dispositivos ligados via SSE (opcional: se falhar, o
+  instrumento continua a funcionar localmente).
 
-## Requisitos
+## Arquitectura
 
-- Node.js 18 ou superior (nenhuma dependência externa)
-- Wi-Fi comportando os dispositivos (a maioria dos routers domésticos aceita 30+)
-- Navegador moderno nos celulares (Android ou iPhone)
+- `server.js` — servidor HTTP em Node.js puro: ficheiros estáticos +
+  stream SSE (`/events`) para o contador de dispositivos.
+- `public/index.html` — aplicação completa do participante, organizada em
+  módulos claros no script:
+  1. **Configuração musical** — `SCALES` (escalas e notas) e `SESSION_CONFIG`
+     (instrumentos e atribuição de notas). Preparado para no futuro receber a
+     configuração de sessão do servidor (escala escolhida, notas por lugar).
+  2. **Motor de áudio** (`AudioEngine`) — síntese e reprodução local.
+  3. **Interface** — ecrãs de escolha e de instrumento.
+  4. **Rede** — apenas contador; sem dependência para reproduzir.
+
+## Testes
+
+**Executados no ambiente de desenvolvimento:**
+- Servidor arranca e serve a página (HTTP 200).
+- Stream SSE abre e emite contagem de dispositivos.
+- Verificação de sintaxe do código do cliente.
+- Validação das frequências das notas atribuídas contra a escala.
+
+**Ainda não realizados (requerem dispositivos físicos):**
+- Latência e responsividade em telemóveis reais (Android/iOS).
+- Activação de áudio no Safari iOS e Chrome Android.
+- Comportamento com ~50 dispositivos no TP-Link Archer C50 AC1200.
+  A rede local ainda não foi testada.
+
+## Evolução prevista (versão 2 — ainda não implementada)
+
+- Painel de controlo do maestro (escala, atribuição de notas, início/fim).
+- QR codes permanentes: cada QR identifica um **lugar** na orquestra; a nota
+  é atribuída pela configuração da sessão, não codificada no QR.
+- Distribuição equilibrada de 2 notas por participante (~50 lugares).
+- Actualização da configuração nos telemóveis através da rede local.
