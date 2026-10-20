@@ -255,9 +255,12 @@
 <div class="screen active" id="screen-menu">
   <div class="menu-title">
     <span class="t">Orquestra de Bolso</span>
-    <span class="s">Sorteia o teu instrumento — ou escolhe livremente</span>
+    <span class="s">Carrega no dado e recebe o teu instrumento</span>
   </div>
   <button class="sorteio-btn" id="sorteioBtn">🎲 Sortear o meu instrumento</button>
+  <!-- Escolha livre escondida por defeito (sorteio é a experiência
+       do participante). O maestro pode revelá-la com ?config=1. -->
+  <div class="free-choice" id="freeChoice" style="display:none">
   <button class="choose-btn" data-inst="bells">
     <span class="ico">🔔</span>
     <span class="txt">Bells
@@ -330,6 +333,7 @@
       <small>Começa com um dedo — depois experimenta dois</small>
     </span>
   </button>
+  </div><!-- /free-choice -->
 </div>
 
 <!-- Ecrã: instrumento com 2 notas -->
@@ -1523,9 +1527,21 @@ document.querySelectorAll('.choose-btn').forEach((b) => {
   b.addEventListener('click', () => openInstrument(b.dataset.inst));
 });
 
+/* Modo config do maestro: ?config=1 revela a escolha livre. Sem
+   ele, o participante vê apenas o sorteio — 'Trocar de instrumento'
+   volta à página do dado (novo sorteio). */
+const isConfigMode = new URLSearchParams(location.search).get('config') === '1';
+if (isConfigMode) {
+  document.getElementById('freeChoice').style.display = '';
+}
+
 ui.backBtn.addEventListener('click', () => {
+  if (placeAssignment) {
+    show('instrument');
+    return;
+  }
   currentInstrument = null;
-  show(placeAssignment ? 'instrument' : 'menu');
+  show('menu');
 });
 
 /* Slider de volume por lugar — guardado no telemóvel (localStorage),
@@ -1866,6 +1882,8 @@ function lockPortrait() {
 }
 
 const placeParams = new URLSearchParams(location.search);
+/* free-choice: só se abre depois de placeParams existir; o botão de
+   back e o sorteio referem-no adiante. */
 const placeNum = parseInt(placeParams.get('lugar'), 10);
 let placeAssignment = null;
 
