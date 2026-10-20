@@ -135,6 +135,7 @@ const SCALES = {
 
 const SESSION_CONFIG = {
   scale: 're-menor-pentatonica',
+  places: 50,
   instruments: {
     bells: {
       id: 'bells',
@@ -150,6 +151,24 @@ const SESSION_CONFIG = {
     },
   },
 };
+
+/* Atribuição determinística de um lugar a instrumento + 2 notas.
+   Alternância de timbre por lugar; cobertura equilibrada das notas
+   da escala através de pares não sobrepostos (0,3) (1,4) (2,3) (0,4) (1,2),
+   repetidos ciclicamente. O mesmo lugar tem sempre as mesmas notas. */
+const PLACE_NOTE_PAIRS = [[0, 3], [1, 4], [2, 3], [0, 4], [1, 2]];
+
+function assignPlace(place) {
+  const scale = SCALES[SESSION_CONFIG.scale];
+  const instrumentId = place % 2 === 0 ? 'bells' : 'handpan';
+  const pair = PLACE_NOTE_PAIRS[(place - 1) % PLACE_NOTE_PAIRS.length];
+  return {
+    place,
+    instrumentId,
+    instrument: SESSION_CONFIG.instruments[instrumentId],
+    notes: pair.map((i) => scale.notes[i]),
+  };
+}
 
 /* ================================================================
    2. MOTOR DE ÁUDIO (Web Audio API)
@@ -357,19 +376,19 @@ const PAD_COLORS = {
   handpan: ['#e8c07d', '#9dc7a1'],
 };
 
-function openInstrument(instId) {
+function openInstrument(instId, noteObjs, place) {
   const inst = SESSION_CONFIG.instruments[instId];
   if (!inst) return;
   currentInstrument = instId;
 
   const scale = SCALES[SESSION_CONFIG.scale];
-  ui.title.textContent = inst.label;
+  ui.title.textContent = inst.label + (place ? ' · Lugar ' + place : '');
   ui.sub.textContent = inst.sub + ' — escala: ' + scale.name;
 
+  const notes = noteObjs || inst.notes.map((i) => scale.notes[i]);
   ui.pads.innerHTML = '';
   armedPad = null;
-  inst.notes.forEach((noteIdx, i) => {
-    const note = scale.notes[noteIdx];
+  notes.forEach((note, i) => {
     const btn = document.createElement('button');
     btn.className = 'note-pad';
     btn.style.background = PAD_COLORS[instId][i] || '#7db8e8';
@@ -409,8 +428,28 @@ document.querySelectorAll('.choose-btn').forEach((b) => {
 
 ui.backBtn.addEventListener('click', () => {
   currentInstrument = null;
-  show('menu');
+  show(placeAssignment ? 'instrument' : 'menu');
 });
+
+/* ================================================================
+   3c. MODO LUGAR (?lugar=N)
+   Link permanente por lugar da orquestra (para QR codes).
+   A atribuição é calculada localmente — sem servidor.
+   Ex.: https://.../?lugar=7 abre já o instrumento do lugar 7.
+   ================================================================ */
+
+const placeParams = new URLSearchParams(location.search);
+const placeNum = parseInt(placeParams.get('lugar'), 10);
+let placeAssignment = null;
+
+if (Number.isInteger(placeNum) && placeNum >= 1 && placeNum <= SESSION_CONFIG.places) {
+  placeAssignment = assignPlace(placeNum);
+  openPlace(placeAssignment);
+}
+
+function openPlace(assignment) {
+  openInstrument(assignment.instrumentId, assignment.notes, assignment.place);
+}
 
 /* ================================================================
    4. REDE (opcional na v1)

@@ -54,6 +54,13 @@ telemóvel como instrumento musical. Versão 1 com dois timbres — **Bells**
   a nota mais antiga desvanece suavemente em vez de cortar.
 - Activação de áudio por interacção (requisito dos navegadores móveis):
   o ecrã indica "toca num botão para activar o som".
+- Modo **lugar** (sem servidor): `?lugar=N` (1–50) atribui a esse
+  lugar, de forma determinística e calculada localmente, um instrumento
+  (Bells/handpan alternados por lugar) e **2 notas** com cobertura
+  equilibrada das 5 notas da escala. Permite QR codes permanentes no
+  GitHub Pages. Ex.: `https://ncint.github.io/Orquestra-de-bolso/?lugar=7`
+  abre directamente o Handpan do lugar 7 (Fá e Dó). Sem servidor não é
+  possível reconfigurar a escala ao vivo (nota de limitação).
 - Contador de dispositivos ligados via SSE (opcional: se falhar, o
   instrumento continua a funcionar localmente).
 
