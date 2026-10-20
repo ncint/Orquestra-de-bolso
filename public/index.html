@@ -123,25 +123,22 @@
      CSS — sem ficheiros de imagem. */
   .theremin-field {
     flex: 1 1 auto; min-height: 0; width: 100%;
-    background-color: #f5f2ea;
-    background-image: url('keffiyeh.svg');
-    background-size: 140px 140px;
-    border: 1px solid #8a8578; border-radius: 20px;
+    background: linear-gradient(#1c2030, #2a3050);
+    border: 1px solid #46506a; border-radius: 20px;
     position: relative; overflow: hidden;
     touch-action: none; user-select: none;
   }
   .theremin-note {
     position: absolute; top: 0; bottom: 0; text-align: center;
     font-size: 14px; font-weight: 700;
-    color: #17181c;
-    text-shadow: 0 1px 2px rgba(255,255,255,.85);
+    color: rgba(255,255,255,.75);
+    text-shadow: 0 1px 3px rgba(0,0,0,.9);
     pointer-events: none;
     display: flex; align-items: center; justify-content: center;
   }
   .theremin-note.sel {
     color: #fff;
-    background: rgba(20,20,25,.75);
-    text-shadow: none;
+    background: rgba(255,255,255,.08);
   }
   .groove-controls {
     flex: 1 1 auto; min-height: 0; width: 100%;
@@ -162,8 +159,8 @@
   .groove-status { text-align: center; font-size: 14px; opacity: .8; }
   .theremin-spot {
     position: absolute; width: 54px; height: 54px; border-radius: 50%;
-    background: rgba(20,20,25,.25);
-    border: 2px solid #17181c;
+    background: rgba(125,184,232,.35);
+    border: 2px solid #7db8e8;
     transform: translate(-50%, -50%);
     pointer-events: none; display: none;
   }
@@ -224,7 +221,7 @@
   </button>
   <button class="choose-btn" data-inst="theremin">
     🕊 Theremin de Paz
-    <small>Melodia livre por arrasto — quantizado à escala</small>
+    <small>Dois dedos em simultâneo — quantizado à escala</small>
   </button>
 </div>
 
@@ -355,7 +352,7 @@ const SESSION_CONFIG = {
     theremin: {
       id: 'theremin',
       label: '🕊 Theremin de Paz',
-      sub: 'Peace Theremin — arrasta o dedo para construir melodias',
+      sub: 'Dois dedos = duas notas — horizontal: nota · vertical: volume',
       octaveShift: 0,
     },
     groove: {
