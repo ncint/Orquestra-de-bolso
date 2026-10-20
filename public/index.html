@@ -1556,11 +1556,12 @@ function openTheremin(inst, scale) {
   }
 
   const octave = Math.pow(2, inst.octaveShift || 0);
-  /* Gerar da mais aguda para a mais grave: o campo fica com os
-     agudos em cima e os graves em baixo (linha 0 = topo). */
+  /* Gerar da mais GRAVE para a mais AGUDA: coluna 0 = esquerda,
+     portanto Ré grave à esquerda e Dó↑ agudo à direita (como um
+     piano: grave à esquerda). */
   const rows = [];
-  for (let oct = 1; oct >= 0; oct--) {
-    scale.notes.slice().reverse().forEach((n) => {
+  for (let oct = 0; oct <= 1; oct++) {
+    scale.notes.forEach((n) => {
       rows.push({
         name: n.name + (oct === 1 ? '↑' : ''),
         freq: n.freq * octave * Math.pow(2, oct),
