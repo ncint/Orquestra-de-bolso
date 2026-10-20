@@ -107,6 +107,23 @@
     pointer-events: none;
   }
   .theremin-note.sel { color: #fff; background: rgba(255,255,255,.08); }
+  .groove-controls {
+    flex: 1 1 auto; min-height: 0; width: 100%;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .groove-play {
+    font-size: 22px; padding: 20px; background: #2e6d4a; border-color: #4a9b6d;
+  }
+  .groove-play.playing { background: #6d2e2e; border-color: #9b4a4a; }
+  .groove-patterns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .groove-patterns button { font-size: 15px; padding: 14px 8px; }
+  .groove-patterns button.sel { background: #4a6bff; border-color: #4a6bff; }
+  .groove-bpm-row { display: flex; align-items: center; gap: 10px;
+                     background: #222735; border-radius: 10px; padding: 10px 12px; }
+  .groove-bpm-row label { font-size: 14px; white-space: nowrap; }
+  .groove-bpm-row .bpm-val { font-weight: 700; min-width: 52px; text-align: right; }
+  .groove-bpm-row input[type="range"] { flex: 1 1 auto; accent-color: #4a9b6d; }
+  .groove-status { text-align: center; font-size: 14px; opacity: .8; }
   .theremin-spot {
     position: absolute; width: 54px; height: 54px; border-radius: 50%;
     background: rgba(125,184,232,.35);
@@ -148,6 +165,10 @@
   <button class="choose-btn" data-inst="djembe">
     🪘 Djembé
     <small>Percussão — grave seco e slap agudo</small>
+  </button>
+  <button class="choose-btn" data-inst="groove">
+    🎧 Groove Box
+    <small>Motivos rítmicos em loop — controla o BPM</small>
   </button>
   <button class="choose-btn" data-inst="theremin">
     🌌 Theremin
@@ -247,6 +268,12 @@ const SESSION_CONFIG = {
       id: 'theremin',
       label: '🌌 Theremin',
       sub: 'Arrasta o dedo para construir melodias — só toca enquanto tocas',
+      octaveShift: 0,
+    },
+    groove: {
+      id: 'groove',
+      label: '🎧 Groove Box',
+      sub: 'Motivos rítmicos em loop — controla o BPM',
       octaveShift: 0,
     },
   },
@@ -630,9 +657,75 @@ const AudioEngine = (() => {
     if (master && typeof v === 'number' && v >= 0) master.gain.value = v * 0.9;
   }
 
+  /* ==============================================================
+     GROOVE BOX — sequenciador de motivos rítmicos em loop.
+     Padrões de 8 passos (2 compassos de 4): cada passo pode ser
+     'g' (grave do djembe), 's' (slap), '.' (silêncio). A lookahead
+     agenda as notas com precisão de relógio de áudio (não setTimeout
+     simples), mantendo o groove estável. Frequências base na região
+     grave da escala.
+     ============================================================== */
+  const GROOVE_PATTERNS = [
+    { name: 'Coração',   steps: 'g...s...' },
+    { name: 'Tresillo',  steps: 'g..s..s.' },
+    { name: 'Marcha',    steps: 'g.s.g.s.' },
+    { name: 'Fluxo',     steps: 'g.ssg.s.' },
+  ];
+  let grooveTimer = null;
+  let grooveStep = 0;
+  let grooveBpm = 100;
+  let groovePatternIdx = 0;
+
+  function grooveStepDur() {
+    return (60 / grooveBpm) / 2;  /* 8 passos = 2 compassos */
+  }
+
+  function grooveTick() {
+    const pattern = GROOVE_PATTERNS[groovePatternIdx].steps;
+    const step = pattern[grooveStep % pattern.length];
+    if (step === 'g') playDjembe(146.83, '0');   /* Ré grave */
+    else if (step === 's') playDjembe(196.00, '1'); /* Sol grave */
+    grooveStep++;
+  }
+
+  function startGroove() {
+    ensure();
+    stopGroove();
+    grooveStep = 0;
+    grooveTick();
+    grooveTimer = setInterval(grooveTick, grooveStepDur() * 1000);
+  }
+
+  function stopGroove() {
+    if (grooveTimer) { clearInterval(grooveTimer); grooveTimer = null; }
+  }
+
+  function setGroovePattern(idx) {
+    if (idx >= 0 && idx < GROOVE_PATTERNS.length) {
+      groovePatternIdx = idx;
+      grooveStep = 0;
+    }
+  }
+
+  function setGrooveBpm(bpm) {
+    if (bpm >= 40 && bpm <= 180) {
+      grooveBpm = bpm;
+      if (grooveTimer) {
+        clearInterval(grooveTimer);
+        grooveTimer = setInterval(grooveTick, grooveStepDur() * 1000);
+      }
+    }
+  }
+
+  function groovePatternNames() {
+    return GROOVE_PATTERNS.map((p) => p.name);
+  }
+
   return {
     ensure, isReady, play, setVolume,
     startTheremin, setThereminFreq, stopTheremin,
+    startGroove, stopGroove, setGroovePattern, setGrooveBpm,
+    groovePatternNames,
   };
 })();
 
@@ -672,15 +765,26 @@ function playArmed() {
    do utilizador — por isso é pedida ao armar a nota. */
 const SHAKE_THRESHOLD = 15;
 const SHAKE_COOLDOWN = 0.25;
+/* Percussão (djembe) pede gesto mais decidido: limiar mais alto e
+   pausa maior entre disparos, para dar controlabilidade. */
+const SHAKE_THRESHOLD_PERC = 22;
+const SHAKE_COOLDOWN_PERC = 0.45;
 let lastShakeTime = 0;
 let motionBound = false;
+
+function shakeParams() {
+  return currentInstrument === 'djembe'
+    ? { th: SHAKE_THRESHOLD_PERC, cd: SHAKE_COOLDOWN_PERC }
+    : { th: SHAKE_THRESHOLD, cd: SHAKE_COOLDOWN };
+}
 
 function onMotion(e) {
   const a = e.accelerationIncludingGravity;
   if (!a || a.x == null) return;
   const mag = Math.sqrt((a.x || 0) ** 2 + (a.y || 0) ** 2 + (a.z || 0) ** 2);
   const now = Date.now() / 1000;
-  if (mag > SHAKE_THRESHOLD && now - lastShakeTime > SHAKE_COOLDOWN) {
+  const { th, cd } = shakeParams();
+  if (mag > th && now - lastShakeTime > cd) {
     lastShakeTime = now;
     playArmed();
   }
@@ -736,6 +840,14 @@ function openInstrument(instId, noteObjs, place) {
 
   if (instId === 'theremin') {
     openTheremin(inst, scale);
+    loadVolume();
+    updateAudioStatus();
+    show('instrument');
+    return;
+  }
+
+  if (instId === 'groove') {
+    openGroove();
     loadVolume();
     updateAudioStatus();
     show('instrument');
@@ -808,16 +920,109 @@ ui.backBtn.addEventListener('click', () => {
    segue o dedo; nota actual destaca-se.
    ================================================================ */
 
+/* ================================================================
+   3e. GROOVE BOX — motivos rítmicos em loop com controlo de BPM.
+   Substitui os pads por controlos: play/stop, escolha de motivo e
+   BPM. O loop corre no motor de áudio; este ecrã só comanda.
+   ================================================================ */
+
+let grooveUiBound = false;
+
+function openGroove() {
+  restorePadsIfTheremin();
+  ui.armHint.style.display = 'none';
+
+  const wrap = document.createElement('div');
+  wrap.className = 'groove-controls';
+  wrap.dataset.groove = '1';
+
+  const playBtn = document.createElement('button');
+  playBtn.className = 'groove-play';
+  playBtn.textContent = '▶ Tocar';
+
+  const status = document.createElement('div');
+  status.className = 'groove-status';
+  status.textContent = 'Escolhe um motivo e prime Tocar';
+
+  const patTitle = document.createElement('p');
+  patTitle.textContent = 'Motivo:';
+  patTitle.style.cssText = 'margin:0;font-size:14px;opacity:.85';
+  const patterns = document.createElement('div');
+  patterns.className = 'groove-patterns';
+  const patBtns = [];
+  AudioEngine.groovePatternNames().forEach((name, idx) => {
+    const b = document.createElement('button');
+    b.textContent = name;
+    if (idx === 0) b.classList.add('sel');
+    b.addEventListener('click', () => {
+      patBtns.forEach((x) => x.classList.remove('sel'));
+      b.classList.add('sel');
+      AudioEngine.setGroovePattern(idx);
+      status.textContent = 'Motivo: ' + name;
+    });
+    patBtns.push(b);
+    patterns.appendChild(b);
+  });
+
+  const bpmRow = document.createElement('div');
+  bpmRow.className = 'groove-bpm-row';
+  const bpmLabel = document.createElement('label');
+  bpmLabel.textContent = 'BPM';
+  const bpmSlider = document.createElement('input');
+  bpmSlider.type = 'range';
+  bpmSlider.min = '40'; bpmSlider.max = '180'; bpmSlider.value = '100';
+  bpmSlider.step = '1';
+  const bpmVal = document.createElement('span');
+  bpmVal.className = 'bpm-val';
+  bpmVal.textContent = '100';
+  bpmSlider.addEventListener('input', () => {
+    bpmVal.textContent = bpmSlider.value;
+    AudioEngine.setGrooveBpm(parseInt(bpmSlider.value, 10));
+  });
+  bpmRow.appendChild(bpmLabel);
+  bpmRow.appendChild(bpmSlider);
+  bpmRow.appendChild(bpmVal);
+
+  let playing = false;
+  playBtn.addEventListener('click', () => {
+    AudioEngine.ensure();
+    updateAudioStatus();
+    lockPortrait();
+    playing = !playing;
+    if (playing) {
+      AudioEngine.startGroove();
+      playBtn.textContent = '■ Parar';
+      playBtn.classList.add('playing');
+      status.textContent = 'A tocar — agita os outros naipes ao ritmo!';
+    } else {
+      AudioEngine.stopGroove();
+      playBtn.textContent = '▶ Tocar';
+      playBtn.classList.remove('playing');
+      status.textContent = 'Parado';
+    }
+  });
+
+  wrap.appendChild(playBtn);
+  wrap.appendChild(status);
+  wrap.appendChild(patTitle);
+  wrap.appendChild(patterns);
+  wrap.appendChild(bpmRow);
+
+  ui.pads.replaceWith(wrap);
+  ui.pads = wrap;
+}
+
 let thereminLayoutHandler = null;
 
 function restorePadsIfTheremin() {
-  const oldField = document.querySelector('[data-theremin]');
+  const oldField = document.querySelector('[data-theremin], [data-groove]');
   if (oldField) {
     if (thereminLayoutHandler) {
       window.removeEventListener('resize', thereminLayoutHandler);
       thereminLayoutHandler = null;
     }
     AudioEngine.stopTheremin();
+    AudioEngine.stopGroove();
     const pads = document.createElement('div');
     pads.className = 'note-pads';
     pads.id = 'pads';
