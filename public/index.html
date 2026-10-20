@@ -355,13 +355,15 @@
    ================================================================ */
 
 const SCALES = {
-  're-menor-pentatonica': {
-    name: 'Ré menor pentatónica',
+  're-menor-natural': {
+    name: 'Ré menor natural',
     notes: [
       { name: 'Ré', freq: 293.66 },
+      { name: 'Mi', freq: 329.63 },
       { name: 'Fá', freq: 349.23 },
       { name: 'Sol', freq: 392.00 },
       { name: 'Lá', freq: 440.00 },
+      { name: 'Sib', freq: 466.16 },
       { name: 'Dó', freq: 523.25 },
     ],
   },
@@ -371,7 +373,7 @@ const SCALES = {
    cada naipe para uma região de frequência própria, evitando que
    50 telemóveis se acumulem na mesma zona. */
 const SESSION_CONFIG = {
-  scale: 're-menor-pentatonica',
+  scale: 're-menor-natural',
   places: 50,
   placesPerSection: 10,
   instruments: {
@@ -379,21 +381,21 @@ const SESSION_CONFIG = {
       id: 'bells',
       label: '🔔 Bells',
       sub: 'Sino musical — brilho, registo agudo',
-      notes: [0, 3],
+      notes: [0, 4],
       octaveShift: 1,   // uma oitava acima
     },
     handpan: {
       id: 'handpan',
       label: '🥁 Handpan',
       sub: 'Ataque suave, corpo tonal — registo médio',
-      notes: [1, 4],
+      notes: [2, 6],
       octaveShift: 0,
     },
     fmbell: {
       id: 'fmbell',
       label: '✨ FM Bell',
       sub: 'Sino elétrico (FM) — brilho electrónico',
-      notes: [2, 4],
+      notes: [3, 5],
       octaveShift: 1,
     },
 
@@ -401,21 +403,21 @@ const SESSION_CONFIG = {
       id: 'formant',
       label: '🗣 Coro Formant',
       sub: 'Vogal sintética — coro robótico',
-      notes: [1, 3],
+      notes: [2, 4],
       octaveShift: 0,
     },
     pad: {
       id: 'pad',
       label: '🌌 Pad',
       sub: 'Textura electrónica quente — nuvem de sintetizadores',
-      notes: [0, 4],
+      notes: [0, 6],
       octaveShift: 0,
     },
     pluck: {
       id: 'pluck',
       label: '💫 Pluck',
       sub: 'Pluck synth com filtro ressonante — electrónica analógica',
-      notes: [2, 4],
+      notes: [4, 6],
       octaveShift: 1,
     },
     djembe: {
@@ -466,7 +468,7 @@ const SESSION_CONFIG = {
 /* Atribuição determinística de um lugar a naipe + 2 notas.
    Naipe = bloco de 10 lugares; notas = pares equilibrados cíclicos.
    O mesmo lugar tem sempre o mesmo naipe e as mesmas notas. */
-const PLACE_NOTE_PAIRS = [[0, 3], [1, 4], [2, 3], [0, 4], [1, 2]];
+const PLACE_NOTE_PAIRS = [[0, 4], [2, 6], [1, 5], [0, 3], [2, 4], [1, 6], [0, 5]];
 /* theremin fica de fora da atribuição por lugar: é instrumento de
    melodia livre, escolhido a partir do menu (não tem 2 notas fixas). */
 const SECTION_ORDER = ['bells', 'handpan', 'fmbell', 'formant', 'djembe'];

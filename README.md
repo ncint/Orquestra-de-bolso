@@ -3,7 +3,7 @@
 Aplicação musical colectiva para workshops: cada participante usa o seu
 telemóvel como instrumento musical. Versão 1 com **cinco naipes** —
 Bells, Handpan, FM Bell, Sub Bass e Coro Formant — sobre a escala fixa de
-**Ré menor pentatónica**, com 50 lugares (10 por naipe).
+**Ré menor natural**, com 50 lugares (10 por naipe).
 
 ## Como executar
 
@@ -40,7 +40,7 @@ Bells, Handpan, FM Bell, Sub Bass e Coro Formant — sobre a escala fixa de
   2,6 s, mix 18%) aplicado a todos os naipes
 - Cada instrumento com **2 botões de nota** grandes (telemóvel em
   orientação vertical).
-- **Escala fixa**: Ré menor pentatónica (Ré – Fá – Sol – Lá – Dó).
+- **Escala fixa**: Ré menor natural (Ré – Mi – Fá – Sol – Lá – Sib – Dó).
 - Atribuições (configuração central em `public/index.html`,
   `SESSION_CONFIG`):
   - Bells: **Ré** e **Lá**
