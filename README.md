@@ -27,13 +27,17 @@ Bells, Handpan, FM Bell, Sub Bass e Coro Formant — sobre a escala fixa de
 
 ## Versão 1 — o que está implementado
 
-- **Cinco naipes** (10 lugares cada, 50 no total), com tessituras
+- **Seis naipes** (10 lugares cada, 60 no total), com tessituras
   deslocadas por oitava para não se acumularem na mesma zona:
   - **🔔 Bells** — sinos, 1 oitava acima (brilho)
   - **🥁 Handpan** — registo médio (corpo acústico)
   - **✨ FM Bell** — sino elétrico FM, 1 oitava acima (brilho electrónico)
   - **🌊 Sub Bass** — seno com queda de pitch, 2 oitavas abaixo (fundação)
   - **🗣 Coro Formant** — vogal sintética via bandpass duplo (coro robótico)
+  - **🪘 Djembé** — percussão de membrana: toque grave seco e slap agudo
+  - **🌌 Theremin** — melodia livre por arrasto (fora da atribuição por lugar)
+- Reverb global (ConvolverNode com resposta ao impulso sintetizada de
+  2,6 s, mix 18%) aplicado a todos os naipes
 - Cada instrumento com **2 botões de nota** grandes (telemóvel em
   orientação vertical).
 - **Escala fixa**: Ré menor pentatónica (Ré – Fá – Sol – Lá – Dó).
