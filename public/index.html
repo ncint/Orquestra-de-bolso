@@ -7,6 +7,19 @@
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; }
+  /* Sistema visual: fundo azul-noite com vinheta suave; acentos
+     quentes (âmbar/dourado) para contraste; cartões com profundidade. */
+  :root {
+    --bg: #12141d;
+    --bg-2: #1a1d2b;
+    --card: #232739;
+    --card-hi: #2d3247;
+    --line: #3a4056;
+    --text: #f2f3f7;
+    --text-dim: #a7abbd;
+    --accent: #e8b04b;
+    --accent-soft: rgba(232,176,75,.14);
+  }
   @media (orientation: landscape) {
     body:not(.allow-landscape)::after {
       content: '📵 Roda o telemóvel para a vertical';
@@ -24,18 +37,29 @@
     min-height: 70vh;
   }
   body {
-    margin: 0; font-family: system-ui, sans-serif;
-    background: #171a24; color: #fff; overscroll-behavior: none;
+    margin: 0; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+    background:
+      radial-gradient(120% 90% at 50% 0%, var(--bg-2) 0%, var(--bg) 58%);
+    background-attachment: fixed;
+    color: var(--text); overscroll-behavior: none;
     display: flex; flex-direction: column;
   }
   header {
-    padding: 10px 16px; display: flex; justify-content: space-between;
+    padding: 14px 18px 10px; display: flex; justify-content: space-between;
     align-items: center; flex: 0 0 auto;
+    border-bottom: 1px solid rgba(255,255,255,.06);
+  }
+  header strong {
+    font-size: 17px; letter-spacing: .3px;
+    background: linear-gradient(90deg, var(--text), #cdd2e4);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
   }
   .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
-         background: #f66; margin-right: 5px; vertical-align: middle; }
-  .dot.on { background: #6d6; }
-  .connected { font-size: 13px; opacity: .85; }
+         background: #e06464; margin-right: 5px; vertical-align: middle;
+         box-shadow: 0 0 0 3px rgba(224,100,100,.18); }
+  .dot.on { background: #5fd68a; box-shadow: 0 0 0 3px rgba(95,214,138,.18); }
+  .connected { font-size: 13px; color: var(--text-dim); }
 
   .screen { display: none; flex: 1 1 auto; flex-direction: column;
             width: 100%; padding: 0 16px 16px; min-height: 0; }
@@ -43,31 +67,74 @@
 
   button {
     font-family: inherit; font-weight: 600;
-    background: #2b3040; color: #fff; border: 1px solid #46506a;
+    background: var(--card); color: var(--text);
+    border: 1px solid var(--line);
     padding: 12px 16px; border-radius: 14px; cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.05);
+    transition: transform .08s, box-shadow .12s, background .12s;
   }
-  button:active { transform: scale(.97); }
+  button:active {
+    transform: scale(.97);
+    box-shadow: 0 1px 2px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.03);
+  }
 
   /* Ecrã de escolha */
   #screen-menu { justify-content: center; max-width: 460px; margin: 0 auto; }
-  #screen-menu p { text-align: center; font-size: 16px; opacity: .85; }
-  .choose-btn {
-    display: block; width: 100%; font-size: 19px; padding: 22px 16px;
-    margin-bottom: 12px; text-align: left;
+  #screen-menu { gap: 2px; }
+  .menu-title {
+    text-align: center; margin: 6px 0 14px;
   }
-  .choose-btn small { display: block; font-weight: 400; font-size: 13px;
-                      opacity: .75; margin-top: 4px; }
-  .choose-btn.bells { background: #274a6d; border-color: #4a7ba6; }
-  .choose-btn.handpan { background: #5d4a2b; border-color: #a6854a; }
+  .menu-title .t {
+    display: block; font-size: 21px; font-weight: 700;
+    letter-spacing: .4px;
+  }
+  .menu-title .s {
+    display: block; font-size: 13px; color: var(--text-dim); margin-top: 4px;
+  }
+  .choose-btn {
+    display: flex; align-items: center; gap: 14px;
+    width: 100%; font-size: 18px; padding: 16px;
+    margin-bottom: 10px; text-align: left;
+    position: relative; overflow: hidden;
+  }
+  .choose-btn .ico {
+    font-size: 26px; flex: 0 0 auto;
+    width: 46px; height: 46px; display: flex; align-items: center;
+    justify-content: center; border-radius: 13px;
+    background: var(--accent-soft);
+  }
+  .choose-btn .txt { flex: 1 1 auto; min-width: 0; }
+  .choose-btn small { display: block; font-weight: 400; font-size: 12.5px;
+                      color: var(--text-dim); margin-top: 3px; }
+  /* Acento lateral por naipe */
+  .choose-btn::before {
+    content: ''; position: absolute; left: 0; top: 10%; bottom: 10%;
+    width: 4px; border-radius: 0 4px 4px 0;
+    background: var(--sec, var(--accent));
+  }
+  .choose-btn[data-inst="bells"]     { --sec: #7db8e8; }
+  .choose-btn[data-inst="handpan"]   { --sec: #e8b04b; }
+  .choose-btn[data-inst="fmbell"]    { --sec: #c9a8e8; }
+  .choose-btn[data-inst="subbass"]   { --sec: #7d8fe8; }
+  .choose-btn[data-inst="formant"]   { --sec: #e89dc4; }
+  .choose-btn[data-inst="djembe"]    { --sec: #c98a5d; }
+  .choose-btn[data-inst="cymbal"]     { --sec: #d8c95d; }
+  .choose-btn[data-inst="shaker"]    { --sec: #9dc9b8; }
+  .choose-btn[data-inst="clap"]       { --sec: #e8b87d; }
+  .choose-btn[data-inst="timbales"]   { --sec: #c97d7d; }
+  .choose-btn[data-inst="groove"]    { --sec: #6dbb8f; }
+  .choose-btn[data-inst="theremin"]   { --sec: #9db8e8; }
 
   /* Ecrã de instrumento */
   #screen-instrument { max-width: 480px; margin: 0 auto; }
-  .inst-title { text-align: center; margin: 4px 0 2px; font-size: 22px; }
-  .inst-sub { text-align: center; font-size: 13px; opacity: .7; margin: 0 0 10px; }
-  .audio-status { text-align: center; font-size: 13px; padding: 6px 10px;
-                  border-radius: 10px; margin: 0 auto 12px; width: fit-content; }
-  .audio-status.off { background: #5d3a3a; color: #ffb0b0; }
-  .audio-status.on  { background: #2e4a34; color: #a8e6b0; display: none; }
+  .inst-title { text-align: center; margin: 6px 0 2px; font-size: 23px;
+                font-weight: 700; letter-spacing: .3px; }
+  .inst-sub { text-align: center; font-size: 13px; color: var(--text-dim);
+              margin: 0 0 10px; }
+  .audio-status { text-align: center; font-size: 13px; padding: 7px 14px;
+                  border-radius: 999px; margin: 0 auto 12px; width: fit-content; }
+  .audio-status.off { background: #4a2f2f; color: #ffb4a6; }
+  .audio-status.on  { background: #274434; color: #a8e6b0; display: none; }
   .mode-row {
     display: flex; align-items: center; gap: 8px;
     margin: 0 auto 10px; max-width: 420px;
@@ -75,7 +142,7 @@
   .mode-row .mode-label { font-size: 13px; opacity: .8; }
   .mode-btn {
     font-size: 13px; padding: 8px 12px; flex: 1 1 auto;
-    background: #222735;
+    background: var(--card);
   }
   .mode-btn.sel { background: #4a6bff; border-color: #4a6bff; }
   .motion-btn {
@@ -92,32 +159,37 @@
     border: none; border-radius: 20px; color: #10131a;
     display: flex; flex-direction: column; align-items: center;
     justify-content: center; min-height: 220px;
-    transition: filter .06s;
+    transition: filter .06s, transform .08s, box-shadow .12s;
     touch-action: manipulation; user-select: none;
+    box-shadow: 0 4px 14px rgba(0,0,0,.35), inset 0 2px 0 rgba(255,255,255,.35);
+  }
+  .note-pad:active { transform: scale(.97); }
+  .note-pad.armed {
+    outline: 5px solid var(--text);
+    outline-offset: -5px;
+    filter: brightness(1.18);
+    box-shadow: 0 0 0 6px var(--accent-soft), 0 4px 14px rgba(0,0,0,.4);
   }
   .note-pad .note-name { font-size: 42px; font-weight: 800; line-height: 1; }
   .note-pad .note-hint { font-size: 13px; font-weight: 400; opacity: .7;
                          margin-top: 8px; }
-  .note-pad.armed {
-    outline: 6px solid #fff;
-    outline-offset: -6px;
-    filter: brightness(1.25);
-  }
   .note-pad.pressed { filter: brightness(1.55); }
   .note-pad.ringing { animation: ring .5s ease-out; }
   @keyframes ring {
     0% { box-shadow: 0 0 0 0 rgba(255,255,255,.55); }
     100% { box-shadow: 0 0 0 34px rgba(255,255,255,0); }
   }
-  .back-btn { margin-top: 12px; font-size: 13px; padding: 8px 14px;
-              align-self: center; background: #222735; }
+  .back-btn { margin-top: 14px; font-size: 13px; padding: 9px 16px;
+              align-self: center; background: transparent; color: var(--text-dim);
+              border-color: transparent; box-shadow: none; }
   .volume-row {
     display: flex; align-items: center; gap: 10px;
-    margin-top: 12px; padding: 8px 12px;
-    background: #222735; border-radius: 10px;
+    margin-top: 14px; padding: 10px 14px;
+    background: var(--card); border-radius: 12px;
+    border: 1px solid var(--line);
   }
-  .volume-row label { font-size: 13px; opacity: .85; white-space: nowrap; }
-  .volume-row input[type="range"] { flex: 1 1 auto; accent-color: #4a7ba6; }
+  .volume-row label { font-size: 13px; color: var(--text-dim); white-space: nowrap; }
+  .volume-row input[type="range"] { flex: 1 1 auto; accent-color: var(--accent); }
   /* Fundo inspirado no keffiyeh (lenço palestiniano): rede em
      xadrez diagonal sobre fundo escuro, construída com gradientes
      CSS — sem ficheiros de imagem. */
@@ -168,60 +240,87 @@
 </head>
 <body>
 <header>
-  <strong style="font-size:16px">🎼 Orquestra de Bolso</strong>
+  <strong>🎼 Orquestra de Bolso</strong>
   <span class="connected"><span class="dot" id="dot"></span><span id="cnt">…</span></span>
 </header>
 
 <!-- Ecrã: escolha do instrumento -->
 <div class="screen active" id="screen-menu">
-  <p>Escolhe o teu instrumento:</p>
+  <div class="menu-title">
+    <span class="t">Orquestra de Bolso</span>
+    <span class="s">Escolhe o teu instrumento</span>
+  </div>
   <button class="choose-btn" data-inst="bells">
-    🔔 Bells
-    <small>Sinos — brilho, registo agudo</small>
+    <span class="ico">🔔</span>
+    <span class="txt">Bells
+      <small>Sinos — brilho, registo agudo</small>
+    </span>
   </button>
   <button class="choose-btn" data-inst="handpan">
-    🥁 Handpan
-    <small>Ataque suave, corpo tonal — registo médio</small>
+    <span class="ico">🥁</span>
+    <span class="txt">Handpan
+      <small>Ataque suave, corpo tonal — registo médio</small>
+    </span>
   </button>
   <button class="choose-btn" data-inst="fmbell">
-    ✨ FM Bell
-    <small>Sino elétrico — brilho electrónico</small>
+    <span class="ico">✨</span>
+    <span class="txt">FM Bell
+      <small>Sino elétrico — brilho electrónico</small>
+    </span>
   </button>
   <button class="choose-btn" data-inst="subbass">
-    🌊 Sub Bass
-    <small>Grave profundo — fundação física</small>
+    <span class="ico">🌊</span>
+    <span class="txt">Sub Bass
+      <small>Grave profundo — fundação física</small>
+    </span>
   </button>
   <button class="choose-btn" data-inst="formant">
-    🗣 Coro Formant
-    <small>Vogal sintética — coro robótico</small>
+    <span class="ico">🗣</span>
+    <span class="txt">Coro Formant
+      <small>Vogal sintética — coro robótico</small>
+    </span>
   </button>
   <button class="choose-btn" data-inst="djembe">
-    🪘 Djembé
-    <small>Percussão — grave seco e slap agudo</small>
+    <span class="ico">🪘</span>
+    <span class="txt">Djembé
+      <small>Percussão — grave seco e slap agudo</small>
+    </span>
   </button>
   <button class="choose-btn" data-inst="cymbal">
-    🥁 Prato
-    <small>Percussão metálica — decaimento longo</small>
+    <span class="ico">🥁</span>
+    <span class="txt">Prato
+      <small>Percussão metálica — decaimento longo</small>
+    </span>
   </button>
   <button class="choose-btn" data-inst="shaker">
-    🥫 Shaker · Maraca
-    <small>Sementes — curto e vivo</small>
+    <span class="ico">🥫</span>
+    <span class="txt">Shaker · Maraca
+      <small>Sementes — curto e vivo</small>
+    </span>
   </button>
   <button class="choose-btn" data-inst="clap">
-    👏 Clap
-    <small>Palmas — corpo e presença</small>
+    <span class="ico">👏</span>
+    <span class="txt">Clap
+      <small>Palmas — corpo e presença</small>
+    </span>
   </button>
   <button class="choose-btn" data-inst="timbales">
-    🛢 Timbales
-    <small>Tambor latino — casara e rim</small>
+    <span class="ico">🛢</span>
+    <span class="txt">Timbales
+      <small>Tambor latino — casara e rim</small>
+    </span>
   </button>
   <button class="choose-btn" data-inst="groove">
-    🎧 Groove Box
-    <small>Motivos rítmicos em loop — controla o BPM</small>
+    <span class="ico">🎧</span>
+    <span class="txt">Groove Box
+      <small>Motivos rítmicos em loop — controla o BPM</small>
+    </span>
   </button>
   <button class="choose-btn" data-inst="theremin">
-    🕊 Theremin de Paz
-    <small>Começa com um dedo — depois experimenta dois</small>
+    <span class="ico">🕊</span>
+    <span class="txt">Theremin de Paz
+      <small>Começa com um dedo — depois experimenta dois</small>
+    </span>
   </button>
 </div>
 
