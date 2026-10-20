@@ -373,7 +373,15 @@ const AudioEngine = (() => {
       reverbGain = ctx.createGain();
       reverbGain.gain.value = 0.18;
       reverb.connect(reverbGain).connect(ctx.destination);
-      master.connect(ctx.destination);
+      /* Limitador suave no master: evita clipping (estalidos) quando
+         várias vozes + reverb + volume do slider somam acima de 1.0. */
+      const limiter = ctx.createDynamicsCompressor();
+      limiter.threshold.value = -6;
+      limiter.knee.value = 6;
+      limiter.ratio.value = 12;
+      limiter.attack.value = 0.003;
+      limiter.release.value = 0.15;
+      master.connect(limiter).connect(ctx.destination);
       master.connect(reverb);
     }
     if (ctx.state === 'suspended') ctx.resume();
@@ -557,13 +565,15 @@ const AudioEngine = (() => {
   /* Theremin: voz contínua (oscilador + vibrato) que só soa enquanto
      o dedo está no campo. startTheremin devolve um controlador com
      setFreq (pitch) e stop (desvanecimento ~0.4 s ao levantar o dedo). */
-  let theremin = null;
+  /* Multitouch: cada dedo = uma voz independente (chaveada por
+     pointerId). Acordes sob a mão, como no Etherpad. */
+  const thereminVoices = new Map();
 
   /* Theremin estilo Etherpad: voz rica (seno dominante + triângulo
      suave + formante), vibrato lento, e brilho controlável pela
      posição X do dedo (drift). Cada toque = uma voz (multitouch,
      acordes sob a mão). Ao levantar, desvanece como um fôlego. */
-  function startTheremin(freq) {
+  function startTheremin(freq, pointerId) {
     ensure();
     const t = ctx.currentTime;
 
@@ -610,44 +620,59 @@ const AudioEngine = (() => {
     lp.connect(form).connect(formGain).connect(g);
     g.connect(gVol).connect(master);
     o.start(t); o2.start(t); vib.start(t);
-    theremin = { o, o2, g, gVol, vib, vibGain, lp };
+    const voice = { o, o2, g, gVol, vib, vibGain, lp };
+    const key = pointerId == null ? '_solo' : String(pointerId);
+    stopTheremin(key);
+    thereminVoices.set(key, voice);
   }
 
-  function setThereminFreq(freq) {
-    if (!theremin) return;
+  function voiceFor(pointerId) {
+    const key = pointerId == null ? '_solo' : String(pointerId);
+    return thereminVoices.get(key);
+  }
+
+  function setThereminFreq(freq, pointerId) {
+    const th = voiceFor(pointerId);
+    if (!th) return;
     const t = ctx.currentTime;
-    theremin.o.frequency.setTargetAtTime(freq, t, 0.03);
-    theremin.o2.frequency.setTargetAtTime(freq, t, 0.03);
-    theremin.vibGain.gain.setTargetAtTime(freq * 0.006, t, 0.03);
-    theremin.lp.frequency.setTargetAtTime(Math.max(freq * 2.5, 600), t, 0.05);
+    th.o.frequency.setTargetAtTime(freq, t, 0.03);
+    th.o2.frequency.setTargetAtTime(freq, t, 0.03);
+    th.vibGain.gain.setTargetAtTime(freq * 0.006, t, 0.03);
+    th.lp.frequency.setTargetAtTime(Math.max(freq * 2.5, 600), t, 0.05);
   }
 
   /* Drift: brilho da voz pela posição X do dedo (0 = escuro,
      1 = brilhante) — moldar o timbre a tocar, como no Etherpad. */
-  function setThereminTone(x01) {
-    if (!theremin) return;
+  function setThereminTone(x01, pointerId) {
+    const th = voiceFor(pointerId);
+    if (!th) return;
     const t = ctx.currentTime;
-    const base = theremin.o.frequency.value;
+    const base = th.o.frequency.value;
     const min = Math.max(base * 1.2, 400);
     const max = Math.max(base * 8, 2000);
     const f = min + (max - min) * Math.max(0, Math.min(1, x01));
-    theremin.lp.frequency.setTargetAtTime(f, t, 0.08);
+    th.lp.frequency.setTargetAtTime(f, t, 0.08);
   }
 
   /* Volume expressivo (antena de volume do theremin): eixo horizontal
      do campo, 0 = quase silêncio, 1 = volume pleno. Curva suave. */
-  function setThereminVolume(x01) {
-    if (!theremin) return;
+  function setThereminVolume(x01, pointerId) {
+    const th = voiceFor(pointerId);
+    if (!th) return;
     const t = ctx.currentTime;
     const v = Math.max(0, Math.min(1, x01));
     const curve = v * v; /* quadrática: mais controlo nos volumes baixos */
-    theremin.gVol.gain.setTargetAtTime(0.001 + curve * 0.9, t, 0.06);
+    th.gVol.gain.setTargetAtTime(0.001 + curve * 0.9, t, 0.06);
   }
 
-  function stopTheremin() {
-    if (!theremin) return;
-    const th = theremin;
-    theremin = null;
+  function stopTheremin(pointerId) {
+    const key = pointerId == null ? '_solo' : String(pointerId);
+    const th = thereminVoices.get(key);
+    if (!th) {
+      if (pointerId == null) stopAllTheremin();
+      return;
+    }
+    thereminVoices.delete(key);
     const t = ctx.currentTime;
     try {
       th.g.gain.cancelScheduledValues(t);
@@ -656,6 +681,12 @@ const AudioEngine = (() => {
       if (th.o2) th.o2.stop(t + 0.8);
       th.vib.stop(t + 0.8);
     } catch (_) {}
+  }
+
+  function stopAllTheremin() {
+    for (const key of Array.from(thereminVoices.keys())) {
+      stopTheremin(key);
+    }
   }
 
   /* Djembé: membrana sintetizada. Botão 1 (nota baixa) = toque grave
@@ -1207,9 +1238,18 @@ function openTheremin(inst, scale) {
 
   const field = document.createElement('div');
   field.className = 'theremin-field';
-  const spot = document.createElement('div');
-  spot.className = 'theremin-spot';
-  field.appendChild(spot);
+  /* Multitouch: uma bola e um estado por dedo (pointerId). */
+  const spots = new Map();
+  function spotFor(pointerId) {
+    const key = String(pointerId);
+    if (!spots.has(key)) {
+      const s = document.createElement('div');
+      s.className = 'theremin-spot';
+      field.appendChild(s);
+      spots.set(key, { el: s, lastIdx: -1 });
+    }
+    return spots.get(key);
+  }
 
   const octave = Math.pow(2, inst.octaveShift || 0);
   /* Gerar da mais aguda para a mais grave: o campo fica com os
@@ -1259,48 +1299,50 @@ function openTheremin(inst, scale) {
   };
 
   let playing = false;
-  let lastIdx = -1;
 
   field.addEventListener('pointerdown', (e) => {
     e.preventDefault();
     AudioEngine.ensure();
     updateAudioStatus();
     const { freq, idx } = freqFromX(e.clientX);
-    AudioEngine.startTheremin(freq);
+    AudioEngine.startTheremin(freq, e.pointerId);
     const rect = field.getBoundingClientRect();
-    AudioEngine.setThereminVolume(1 - (e.clientY - rect.top) / rect.height);
+    AudioEngine.setThereminVolume(1 - (e.clientY - rect.top) / rect.height, e.pointerId);
     playing = true;
-    lastIdx = idx;
+    const spot = spotFor(e.pointerId);
+    spot.lastIdx = idx;
     highlight(idx);
-    /* Bola: posição do dedo relativa AO CAMPO (clientX/Y são
-       coordenadas do ecrã inteiro; sem subtrair a origem do campo
-       a bola aparecia deslocada para baixo). */
-    spot.style.display = 'block';
-    spot.style.left = (e.clientX - rect.left) + 'px';
-    spot.style.top = (e.clientY - rect.top) + 'px';
+    spot.el.style.display = 'block';
+    spot.el.style.left = (e.clientX - rect.left) + 'px';
+    spot.el.style.top = (e.clientY - rect.top) + 'px';
     field.setPointerCapture(e.pointerId);
   });
   field.addEventListener('pointermove', (e) => {
     if (!playing) return;
+    const spot = spots.get(String(e.pointerId));
+    if (!spot) return;
     const rect = field.getBoundingClientRect();
-    spot.style.left = (e.clientX - rect.left) + 'px';
-    spot.style.top = (e.clientY - rect.top) + 'px';
+    spot.el.style.left = (e.clientX - rect.left) + 'px';
+    spot.el.style.top = (e.clientY - rect.top) + 'px';
     const { freq, idx } = freqFromX(e.clientX);
-    if (idx !== lastIdx) {
-      AudioEngine.setThereminFreq(freq);
-      lastIdx = idx;
+    if (idx !== spot.lastIdx) {
+      AudioEngine.setThereminFreq(freq, e.pointerId);
+      spot.lastIdx = idx;
       highlight(idx);
     }
     /* Volume expressivo: Y do dedo = antena de volume
        (cima = forte, baixo = suave). */
-    AudioEngine.setThereminVolume(1 - (e.clientY - rect.top) / rect.height);
+    AudioEngine.setThereminVolume(1 - (e.clientY - rect.top) / rect.height, e.pointerId);
   });
-  const end = () => {
-    if (!playing) return;
-    playing = false;
-    AudioEngine.stopTheremin();
-    spot.style.display = 'none';
-    highlight(-1);
+  const end = (e) => {
+    const key = String(e.pointerId);
+    const spot = spots.get(key);
+    if (spot) {
+      spot.el.style.display = 'none';
+      spots.delete(key);
+    }
+    AudioEngine.stopTheremin(e.pointerId);
+    if (spots.size === 0) highlight(-1);
   };
   field.addEventListener('pointerup', end);
   field.addEventListener('pointercancel', end);
