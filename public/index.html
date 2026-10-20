@@ -122,14 +122,12 @@
   .choose-btn[data-inst="bells"]     { --sec: #7db8e8; }
   .choose-btn[data-inst="handpan"]   { --sec: #e8b04b; }
   .choose-btn[data-inst="fmbell"]    { --sec: #c9a8e8; }
-  .choose-btn[data-inst="subbass"]   { --sec: #7d8fe8; }
   .choose-btn[data-inst="formant"]   { --sec: #e89dc4; }
   .choose-btn[data-inst="djembe"]    { --sec: #c98a5d; }
   .choose-btn[data-inst="cymbal"]     { --sec: #d8c95d; }
   .choose-btn[data-inst="shaker"]    { --sec: #9dc9b8; }
   .choose-btn[data-inst="clap"]       { --sec: #e8b87d; }
   .choose-btn[data-inst="timbales"]   { --sec: #c97d7d; }
-  .choose-btn[data-inst="groove"]    { --sec: #6dbb8f; }
   .choose-btn[data-inst="theremin"]   { --sec: #9db8e8; }
 
   /* Ecrã de instrumento */
@@ -219,23 +217,6 @@
     color: #fff;
     background: rgba(255,255,255,.08);
   }
-  .groove-controls {
-    flex: 1 1 auto; min-height: 0; width: 100%;
-    display: flex; flex-direction: column; gap: 14px;
-  }
-  .groove-play {
-    font-size: 22px; padding: 20px; background: #2e6d4a; border-color: #4a9b6d;
-  }
-  .groove-play.playing { background: #6d2e2e; border-color: #9b4a4a; }
-  .groove-patterns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .groove-patterns button { font-size: 15px; padding: 14px 8px; }
-  .groove-patterns button.sel { background: #4a6bff; border-color: #4a6bff; }
-  .groove-bpm-row { display: flex; align-items: center; gap: 10px;
-                     background: #222735; border-radius: 10px; padding: 10px 12px; }
-  .groove-bpm-row label { font-size: 14px; white-space: nowrap; }
-  .groove-bpm-row .bpm-val { font-weight: 700; min-width: 52px; text-align: right; }
-  .groove-bpm-row input[type="range"] { flex: 1 1 auto; accent-color: #4a9b6d; }
-  .groove-status { text-align: center; font-size: 14px; opacity: .8; }
   .theremin-spot {
     position: absolute; width: 54px; height: 54px; border-radius: 50%;
     background: rgba(125,184,232,.35);
@@ -279,12 +260,7 @@
       <small>Sino elétrico — brilho electrónico</small>
     </span>
   </button>
-  <button class="choose-btn" data-inst="subbass">
-    <span class="ico">🌊</span>
-    <span class="txt">Sub Bass
-      <small>Grave profundo — fundação física</small>
-    </span>
-  </button>
+
   <button class="choose-btn" data-inst="formant">
     <span class="ico">🗣</span>
     <span class="txt">Coro Formant
@@ -321,12 +297,7 @@
       <small>Tambor latino — casara e rim</small>
     </span>
   </button>
-  <button class="choose-btn" data-inst="groove">
-    <span class="ico">🎧</span>
-    <span class="txt">Groove Box
-      <small>Motivos rítmicos em loop — controla o BPM</small>
-    </span>
-  </button>
+
   <button class="choose-btn" data-inst="theremin">
     <span class="ico">🕊</span>
     <span class="txt">Theremin de Paz
@@ -387,7 +358,7 @@ const SCALES = {
    50 telemóveis se acumulem na mesma zona. */
 const SESSION_CONFIG = {
   scale: 're-menor-pentatonica',
-  places: 60,
+  places: 50,
   placesPerSection: 10,
   instruments: {
     bells: {
@@ -411,13 +382,7 @@ const SESSION_CONFIG = {
       notes: [2, 4],
       octaveShift: 1,
     },
-    subbass: {
-      id: 'subbass',
-      label: '🌊 Sub Bass',
-      sub: 'Grave com queda de pitch e textura de ruído — fundação',
-      notes: [0, 2],
-      octaveShift: -1,  // uma oitava abaixo: audível em colunas de telemóvel
-    },
+
     formant: {
       id: 'formant',
       label: '🗣 Coro Formant',
@@ -466,12 +431,7 @@ const SESSION_CONFIG = {
       sub: 'Um dedo para começar · dois em simultâneo — horizontal: nota · vertical: volume',
       octaveShift: 0,
     },
-    groove: {
-      id: 'groove',
-      label: '🎧 Groove Box',
-      sub: 'Motivos rítmicos em loop — controla o BPM',
-      octaveShift: 0,
-    },
+
   },
 };
 
@@ -481,7 +441,7 @@ const SESSION_CONFIG = {
 const PLACE_NOTE_PAIRS = [[0, 3], [1, 4], [2, 3], [0, 4], [1, 2]];
 /* theremin fica de fora da atribuição por lugar: é instrumento de
    melodia livre, escolhido a partir do menu (não tem 2 notas fixas). */
-const SECTION_ORDER = ['bells', 'handpan', 'fmbell', 'subbass', 'formant', 'djembe'];
+const SECTION_ORDER = ['bells', 'handpan', 'fmbell', 'formant', 'djembe'];
 
 function assignPlace(place) {
   const scale = SCALES[SESSION_CONFIG.scale];
@@ -717,193 +677,6 @@ const AudioEngine = (() => {
     group.gains.push(g);
   }
 
-  /* Sub Bass: seno com queda de pitch (tipo 808) + camada de ruído
-     filtrado no ataque, para ser audível nas colunas pequenas dos
-     telemóveis (que não reproduzem infra-graves). */
-  function playSubBass(freq) {
-    ensure();
-    const t = ctx.currentTime + 0.005;
-    const group = beginNote(t + 3.5);
-
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.type = 'sine';
-    o.frequency.setValueAtTime(freq * 1.5, t);
-    o.frequency.exponentialRampToValueAtTime(freq, t + 0.05);
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.linearRampToValueAtTime(0.55, t + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 3.2);
-    o.connect(g).connect(master);
-    o.start(t); o.stop(t + 3.5);
-    group.gains.push(g);
-
-  }
-
-  /* Formant: dente-de-serra através de dois bandpass (vogal "a") —
-     coro robótico suave com decaimento médio. */
-  function playFormant(freq) {
-    ensure();
-    const t = ctx.currentTime + 0.005;
-    const group = beginNote(t + 2.6);
-
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.type = 'sawtooth';
-    o.frequency.value = freq;
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.linearRampToValueAtTime(0.4, t + 0.05);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 2.2);
-    o.connect(g);
-
-    const vogal = (f, q, peak) => {
-      const bp = ctx.createBiquadFilter();
-      bp.type = 'bandpass';
-      bp.frequency.value = f;
-      bp.Q.value = q;
-      const og = ctx.createGain();
-      og.gain.value = peak;
-      g.connect(bp).connect(og).connect(master);
-    };
-    vogal(700, 8, 0.9);
-    vogal(1220, 10, 0.5);
-    vogal(2600, 12, 0.18);
-
-    o.start(t); o.stop(t + 2.6);
-    group.gains.push(g);
-  }
-
-  /* Theremin: voz contínua (oscilador + vibrato) que só soa enquanto
-     o dedo está no campo. startTheremin devolve um controlador com
-     setFreq (pitch) e stop (desvanecimento ~0.4 s ao levantar o dedo). */
-  /* Multitouch: cada dedo = uma voz independente (chaveada por
-     pointerId). Acordes sob a mão, como no Etherpad. */
-  const thereminVoices = new Map();
-
-  /* Theremin estilo Etherpad: voz rica (seno dominante + triângulo
-     suave + formante), vibrato lento, e brilho controlável pela
-     posição X do dedo (drift). Cada toque = uma voz (multitouch,
-     acordes sob a mão). Ao levantar, desvanece como um fôlego. */
-  function startTheremin(freq, pointerId) {
-    ensure();
-    const t = ctx.currentTime;
-
-    const o = ctx.createOscillator();
-    const o2 = ctx.createOscillator();
-    const g = ctx.createGain();
-    const g2 = ctx.createGain();
-    const vib = ctx.createOscillator();
-    const vibGain = ctx.createGain();
-    const lp = ctx.createBiquadFilter();
-    const form = ctx.createBiquadFilter();
-
-    o.type = 'sine';
-    o.frequency.setValueAtTime(freq, t);
-    o2.type = 'triangle';
-    o2.frequency.setValueAtTime(freq, t);
-    g2.gain.value = 0.12;
-    vib.frequency.value = 5.5;
-    vibGain.gain.value = freq * 0.006;
-    lp.type = 'lowpass';
-    lp.frequency.value = Math.max(freq * 2.5, 600);
-    lp.Q.value = 0.5;
-    form.type = 'bandpass';
-    form.frequency.value = Math.max(freq * 1.5, 400);
-    form.Q.value = 1.2;
-    const formGain = ctx.createGain();
-    formGain.gain.value = 0.25;
-
-    /* Dois gains separados: g = envelope de ataque/queda (nunca
-       tocado durante a nota), gVol = volume expressivo do dedo.
-       Antes, o setTargetAtTime do volume cancelava a rampa de
-       ataque a meio — origem dos estalidos. */
-    const gVol = ctx.createGain();
-    gVol.gain.value = 0.6;
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.linearRampToValueAtTime(0.32, t + 0.18);
-
-    vib.connect(vibGain);
-    vibGain.connect(o.frequency);
-    vibGain.connect(o2.frequency);
-    o.connect(lp);
-    o2.connect(g2).connect(lp);
-    lp.connect(g);
-    lp.connect(form).connect(formGain).connect(g);
-    g.connect(gVol).connect(master);
-    /* Send de reverb próprio do theremin, mais presente que o mix
-       global (18%): 40%. */
-    const revSend = ctx.createGain();
-    revSend.gain.value = 0.4;
-    gVol.connect(revSend).connect(reverb);
-    o.start(t); o2.start(t); vib.start(t);
-    const voice = { o, o2, g, gVol, vib, vibGain, lp };
-    const key = pointerId == null ? '_solo' : String(pointerId);
-    stopTheremin(key);
-    thereminVoices.set(key, voice);
-  }
-
-  function voiceFor(pointerId) {
-    const key = pointerId == null ? '_solo' : String(pointerId);
-    return thereminVoices.get(key);
-  }
-
-  function setThereminFreq(freq, pointerId) {
-    const th = voiceFor(pointerId);
-    if (!th) return;
-    const t = ctx.currentTime;
-    th.o.frequency.setTargetAtTime(freq, t, 0.03);
-    th.o2.frequency.setTargetAtTime(freq, t, 0.03);
-    th.vibGain.gain.setTargetAtTime(freq * 0.006, t, 0.03);
-    th.lp.frequency.setTargetAtTime(Math.max(freq * 2.5, 600), t, 0.05);
-  }
-
-  /* Drift: brilho da voz pela posição X do dedo (0 = escuro,
-     1 = brilhante) — moldar o timbre a tocar, como no Etherpad. */
-  function setThereminTone(x01, pointerId) {
-    const th = voiceFor(pointerId);
-    if (!th) return;
-    const t = ctx.currentTime;
-    const base = th.o.frequency.value;
-    const min = Math.max(base * 1.2, 400);
-    const max = Math.max(base * 8, 2000);
-    const f = min + (max - min) * Math.max(0, Math.min(1, x01));
-    th.lp.frequency.setTargetAtTime(f, t, 0.08);
-  }
-
-  /* Volume expressivo (antena de volume do theremin): eixo horizontal
-     do campo, 0 = quase silêncio, 1 = volume pleno. Curva suave. */
-  function setThereminVolume(x01, pointerId) {
-    const th = voiceFor(pointerId);
-    if (!th) return;
-    const t = ctx.currentTime;
-    const v = Math.max(0, Math.min(1, x01));
-    const curve = v * v; /* quadrática: mais controlo nos volumes baixos */
-    th.gVol.gain.setTargetAtTime(0.001 + curve * 0.9, t, 0.06);
-  }
-
-  function stopTheremin(pointerId) {
-    const key = pointerId == null ? '_solo' : String(pointerId);
-    const th = thereminVoices.get(key);
-    if (!th) {
-      if (pointerId == null) stopAllTheremin();
-      return;
-    }
-    thereminVoices.delete(key);
-    const t = ctx.currentTime;
-    try {
-      th.g.gain.cancelScheduledValues(t);
-      th.g.gain.setTargetAtTime(0.0001, t, 0.12);
-      th.o.stop(t + 0.8);
-      if (th.o2) th.o2.stop(t + 0.8);
-      th.vib.stop(t + 0.8);
-    } catch (_) {}
-  }
-
-  function stopAllTheremin() {
-    for (const key of Array.from(thereminVoices.keys())) {
-      stopTheremin(key);
-    }
-  }
-
   /* Djembé: membrana sintetizada. Botão 1 (nota baixa) = toque grave
      seco — seno com pitch bend descendente e ruído curto; botão 2
      (nota alta) = slap — ruído filtrado agudo com ressonância. */
@@ -1133,7 +906,6 @@ const AudioEngine = (() => {
     if (instrumentId === 'bells') playBells(freq);
     else if (instrumentId === 'handpan') playHandpan(freq);
     else if (instrumentId === 'fmbell') playFMBell(freq);
-    else if (instrumentId === 'subbass') playSubBass(freq);
     else if (instrumentId === 'formant') playFormant(freq);
     else if (instrumentId === 'djembe') playPercOrSample('djembe', freq, arguments[2], playDjembe);
     else if (instrumentId === 'cymbal') playPercOrSample('cymbal', freq, arguments[2], playCymbal);
@@ -1146,75 +918,10 @@ const AudioEngine = (() => {
     if (master && typeof v === 'number' && v >= 0) master.gain.value = v * 0.9;
   }
 
-  /* ==============================================================
-     GROOVE BOX — sequenciador de motivos rítmicos em loop.
-     Padrões de 8 passos (2 compassos de 4): cada passo pode ser
-     'g' (grave do djembe), 's' (slap), '.' (silêncio). A lookahead
-     agenda as notas com precisão de relógio de áudio (não setTimeout
-     simples), mantendo o groove estável. Frequências base na região
-     grave da escala.
-     ============================================================== */
-  const GROOVE_PATTERNS = [
-    { name: 'Coração',   steps: 'g...s...' },
-    { name: 'Tresillo',  steps: 'g..s..s.' },
-    { name: 'Marcha',    steps: 'g.s.g.s.' },
-    { name: 'Fluxo',     steps: 'g.ssg.s.' },
-  ];
-  let grooveTimer = null;
-  let grooveStep = 0;
-  let grooveBpm = 100;
-  let groovePatternIdx = 0;
-
-  function grooveStepDur() {
-    return (60 / grooveBpm) / 2;  /* 8 passos = 2 compassos */
-  }
-
-  function grooveTick() {
-    const pattern = GROOVE_PATTERNS[groovePatternIdx].steps;
-    const step = pattern[grooveStep % pattern.length];
-    if (step === 'g') playDjembe(146.83, '0');   /* Ré grave */
-    else if (step === 's') playDjembe(196.00, '1'); /* Sol grave */
-    grooveStep++;
-  }
-
-  function startGroove() {
-    ensure();
-    stopGroove();
-    grooveStep = 0;
-    grooveTick();
-    grooveTimer = setInterval(grooveTick, grooveStepDur() * 1000);
-  }
-
-  function stopGroove() {
-    if (grooveTimer) { clearInterval(grooveTimer); grooveTimer = null; }
-  }
-
-  function setGroovePattern(idx) {
-    if (idx >= 0 && idx < GROOVE_PATTERNS.length) {
-      groovePatternIdx = idx;
-      grooveStep = 0;
-    }
-  }
-
-  function setGrooveBpm(bpm) {
-    if (bpm >= 40 && bpm <= 180) {
-      grooveBpm = bpm;
-      if (grooveTimer) {
-        clearInterval(grooveTimer);
-        grooveTimer = setInterval(grooveTick, grooveStepDur() * 1000);
-      }
-    }
-  }
-
-  function groovePatternNames() {
-    return GROOVE_PATTERNS.map((p) => p.name);
-  }
 
   return {
     ensure, isReady, play, setVolume,
     startTheremin, setThereminFreq, setThereminTone, setThereminVolume, stopTheremin,
-    startGroove, stopGroove, setGroovePattern, setGrooveBpm,
-    groovePatternNames,
     preloadPercussion,
   };
 })();
@@ -1390,7 +1097,6 @@ const PAD_COLORS = {
   bells: ['#7db8e8', '#e89d7d'],
   handpan: ['#e8c07d', '#9dc7a1'],
   fmbell: ['#c9a8e8', '#e8d47d'],
-  subbass: ['#7d8fe8', '#7db8c9'],
   formant: ['#e89dc4', '#c97da8'],
   djembe: ['#c98a5d', '#8a5d3a'],
   cymbal: ['#d8c95d', '#b8a84a'],
@@ -1434,13 +1140,7 @@ function openInstrument(instId, noteObjs, place) {
     return;
   }
 
-  if (instId === 'groove') {
-    openGroove();
-    loadVolume();
-    updateAudioStatus();
-    show('instrument');
-    return;
-  }
+
 
   restorePadsIfTheremin();
 
@@ -1513,7 +1213,7 @@ function openInstrument(instId, noteObjs, place) {
    carregar de novo dá um instrumento novo (para re-jogar).
    ================================================================ */
 
-const SORTEABLE = ['bells', 'handpan', 'fmbell', 'subbass', 'formant',
+const SORTEABLE = ['bells', 'handpan', 'fmbell', 'formant',
                    'djembe', 'cymbal', 'shaker', 'clap', 'timbales'];
 const sorteioBtn = document.getElementById('sorteioBtn');
 
@@ -1560,104 +1260,17 @@ ui.backBtn.addEventListener('click', () => {
    BPM. O loop corre no motor de áudio; este ecrã só comanda.
    ================================================================ */
 
-let grooveUiBound = false;
-
-function openGroove() {
-  restorePadsIfTheremin();
-  ui.armHint.style.display = 'none';
-
-  const wrap = document.createElement('div');
-  wrap.className = 'groove-controls';
-  wrap.dataset.groove = '1';
-
-  const playBtn = document.createElement('button');
-  playBtn.className = 'groove-play';
-  playBtn.textContent = '▶ Tocar';
-
-  const status = document.createElement('div');
-  status.className = 'groove-status';
-  status.textContent = 'Escolhe um motivo e prime Tocar';
-
-  const patTitle = document.createElement('p');
-  patTitle.textContent = 'Motivo:';
-  patTitle.style.cssText = 'margin:0;font-size:14px;opacity:.85';
-  const patterns = document.createElement('div');
-  patterns.className = 'groove-patterns';
-  const patBtns = [];
-  AudioEngine.groovePatternNames().forEach((name, idx) => {
-    const b = document.createElement('button');
-    b.textContent = name;
-    if (idx === 0) b.classList.add('sel');
-    b.addEventListener('click', () => {
-      patBtns.forEach((x) => x.classList.remove('sel'));
-      b.classList.add('sel');
-      AudioEngine.setGroovePattern(idx);
-      status.textContent = 'Motivo: ' + name;
-    });
-    patBtns.push(b);
-    patterns.appendChild(b);
-  });
-
-  const bpmRow = document.createElement('div');
-  bpmRow.className = 'groove-bpm-row';
-  const bpmLabel = document.createElement('label');
-  bpmLabel.textContent = 'BPM';
-  const bpmSlider = document.createElement('input');
-  bpmSlider.type = 'range';
-  bpmSlider.min = '40'; bpmSlider.max = '180'; bpmSlider.value = '100';
-  bpmSlider.step = '1';
-  const bpmVal = document.createElement('span');
-  bpmVal.className = 'bpm-val';
-  bpmVal.textContent = '100';
-  bpmSlider.addEventListener('input', () => {
-    bpmVal.textContent = bpmSlider.value;
-    AudioEngine.setGrooveBpm(parseInt(bpmSlider.value, 10));
-  });
-  bpmRow.appendChild(bpmLabel);
-  bpmRow.appendChild(bpmSlider);
-  bpmRow.appendChild(bpmVal);
-
-  let playing = false;
-  playBtn.addEventListener('click', () => {
-    AudioEngine.ensure();
-    updateAudioStatus();
-    lockPortrait();
-    playing = !playing;
-    if (playing) {
-      AudioEngine.startGroove();
-      playBtn.textContent = '■ Parar';
-      playBtn.classList.add('playing');
-      status.textContent = 'A tocar — agita os outros naipes ao ritmo!';
-    } else {
-      AudioEngine.stopGroove();
-      playBtn.textContent = '▶ Tocar';
-      playBtn.classList.remove('playing');
-      status.textContent = 'Parado';
-    }
-  });
-
-  wrap.appendChild(playBtn);
-  wrap.appendChild(status);
-  wrap.appendChild(patTitle);
-  wrap.appendChild(patterns);
-  wrap.appendChild(bpmRow);
-
-  ui.pads.replaceWith(wrap);
-  ui.pads = wrap;
-}
-
 let thereminLayoutHandler = null;
 
 function restorePadsIfTheremin() {
   document.body.classList.remove('allow-landscape');
-  const oldField = document.querySelector('[data-theremin], [data-groove]');
+  const oldField = document.querySelector('[data-theremin]');
   if (oldField) {
     if (thereminLayoutHandler) {
       window.removeEventListener('resize', thereminLayoutHandler);
       thereminLayoutHandler = null;
     }
     AudioEngine.stopTheremin();
-    AudioEngine.stopGroove();
     const pads = document.createElement('div');
     pads.className = 'note-pads';
     pads.id = 'pads';
