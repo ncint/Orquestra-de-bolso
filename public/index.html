@@ -60,6 +60,16 @@
                   border-radius: 10px; margin: 0 auto 12px; width: fit-content; }
   .audio-status.off { background: #5d3a3a; color: #ffb0b0; }
   .audio-status.on  { background: #2e4a34; color: #a8e6b0; display: none; }
+  .mode-row {
+    display: flex; align-items: center; gap: 8px;
+    margin: 0 auto 10px; max-width: 420px;
+  }
+  .mode-row .mode-label { font-size: 13px; opacity: .8; }
+  .mode-btn {
+    font-size: 13px; padding: 8px 12px; flex: 1 1 auto;
+    background: #222735;
+  }
+  .mode-btn.sel { background: #4a6bff; border-color: #4a6bff; }
   .motion-btn {
     display: block; width: 100%; margin: 0 auto 10px;
     font-size: 15px; padding: 12px; max-width: 420px;
@@ -190,6 +200,11 @@
   <div class="audio-status off" id="audioOff">🔇 Toca num botão para activar o som</div>
   <div class="audio-status on" id="audioOn">🔊 Som activo</div>
   <p class="arm-hint" id="armHint">Toca numa nota para armar · Agita o telemóvel para tocar</p>
+  <div class="mode-row">
+    <span class="mode-label">Modo:</span>
+    <button class="mode-btn sel" id="modeShake">📳 Abanar</button>
+    <button class="mode-btn" id="modeTap">👆 Toque</button>
+  </div>
   <button class="motion-btn" id="motionBtn" style="display:none">
     📳 Ativar agitar no iPhone
   </button>
@@ -758,6 +773,42 @@ const ui = {
 let currentInstrument = null;
 let armedPad = null;
 
+/* Modo de execução: 'shake' (abanar, por defeito) ou 'tap' (o botão
+   toca directamente — para telemóveis sem sensores ou com permissão
+   de movimento indisponível). Persistente por lugar. */
+let playMode = 'shake';
+
+function modeKey() {
+  return 'ob-mode-' + (placeAssignment ? placeAssignment.place : 'livre');
+}
+
+function loadPlayMode() {
+  try {
+    const m = localStorage.getItem(modeKey());
+    if (m === 'shake' || m === 'tap') playMode = m;
+  } catch (_) {}
+  const shakeBtn = document.getElementById('modeShake');
+  const tapBtn = document.getElementById('modeTap');
+  shakeBtn.classList.toggle('sel', playMode === 'shake');
+  tapBtn.classList.toggle('sel', playMode === 'tap');
+  const hint = document.getElementById('armHint');
+  if (hint) {
+    hint.textContent = playMode === 'shake'
+      ? 'Toca numa nota para armar · Agita o telemóvel para tocar'
+      : 'Modo Toque: prime o botão para ouvir a nota';
+  }
+}
+
+function setPlayMode(mode) {
+  playMode = mode;
+  try { localStorage.setItem(modeKey(), mode); } catch (_) {}
+  if (armedPad) { armedPad.classList.remove('armed'); armedPad = null; }
+  loadPlayMode();
+}
+
+document.getElementById('modeShake').addEventListener('click', () => setPlayMode('shake'));
+document.getElementById('modeTap').addEventListener('click', () => setPlayMode('tap'));
+
 function playArmed() {
   if (!armedPad || !currentInstrument) return;
   const freq = Number(armedPad.dataset.freq);
@@ -912,15 +963,26 @@ function openInstrument(instId, noteObjs, place) {
       e.preventDefault();
       AudioEngine.ensure();
       updateAudioStatus();
-      if (armedPad === btn) {
-        armedPad = null;
-        btn.classList.remove('armed');
+      if (playMode === 'tap') {
+        /* Modo Toque: o botão toca directamente ao premir. */
+        const freq = Number(btn.dataset.freq);
+        const pad = btn.dataset.pad || '0';
+        AudioEngine.play(instId, freq, pad);
+        btn.classList.remove('ringing');
+        void btn.offsetWidth;
+        btn.classList.add('pressed', 'ringing');
       } else {
-        if (armedPad) armedPad.classList.remove('armed');
-        armedPad = btn;
-        btn.classList.add('armed');
+        /* Modo Abanar: o toque arma a nota; agitar toca. */
+        if (armedPad === btn) {
+          armedPad = null;
+          btn.classList.remove('armed');
+        } else {
+          if (armedPad) armedPad.classList.remove('armed');
+          armedPad = btn;
+          btn.classList.add('armed');
+        }
+        requestMotionPermission((r) => { if (r === 'granted') updateMotionBtn(); });
       }
-      requestMotionPermission((r) => { if (r === 'granted') updateMotionBtn(); });
       lockPortrait();
     });
     ['pointerup', 'pointercancel', 'pointerleave'].forEach((ev) => {
@@ -933,6 +995,7 @@ function openInstrument(instId, noteObjs, place) {
   loadVolume();
   updateAudioStatus();
   updateMotionBtn();
+  loadPlayMode();
   show('instrument');
 }
 
