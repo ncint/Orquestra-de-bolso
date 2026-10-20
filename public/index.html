@@ -815,7 +815,10 @@ function openTheremin(inst, scale) {
   ui.pads.replaceWith(field);
   ui.pads = field;
   field.dataset.theremin = '1';
-  layout();
+  /* layout após o ecrã estar visível: no momento da chamada o ecrã
+     ainda está display:none e clientHeight seria 0. requestAnimationFrame
+     corre depois de show('instrument') ter activado o ecrã. */
+  requestAnimationFrame(() => { layout(); layout(); });
   thereminLayoutHandler = layout;
   window.addEventListener('resize', layout);
 }
