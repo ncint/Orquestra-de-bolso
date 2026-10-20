@@ -8,12 +8,20 @@
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; }
   @media (orientation: landscape) {
-    body::after {
+    body:not(.allow-landscape)::after {
       content: '📵 Roda o telemóvel para a vertical';
       position: fixed; inset: 0; background: #171a24; z-index: 99;
       display: flex; align-items: center; justify-content: center;
       font-size: 20px; font-weight: 600;
     }
+  }
+  /* Theremin: o campo cresce com o ecrã na horizontal — a app põe
+     body.allow-landscape ao abrir o theremin e retira-o ao sair. */
+  body.allow-landscape {
+    height: auto; min-height: 100vh;
+  }
+  body.allow-landscape .theremin-field {
+    min-height: 70vh;
   }
   body {
     margin: 0; font-family: system-ui, sans-serif;
@@ -584,6 +592,12 @@ const AudioEngine = (() => {
     const formGain = ctx.createGain();
     formGain.gain.value = 0.25;
 
+    /* Dois gains separados: g = envelope de ataque/queda (nunca
+       tocado durante a nota), gVol = volume expressivo do dedo.
+       Antes, o setTargetAtTime do volume cancelava a rampa de
+       ataque a meio — origem dos estalidos. */
+    const gVol = ctx.createGain();
+    gVol.gain.value = 0.6;
     g.gain.setValueAtTime(0.0001, t);
     g.gain.linearRampToValueAtTime(0.32, t + 0.18);
 
@@ -594,9 +608,9 @@ const AudioEngine = (() => {
     o2.connect(g2).connect(lp);
     lp.connect(g);
     lp.connect(form).connect(formGain).connect(g);
-    g.connect(master);
+    g.connect(gVol).connect(master);
     o.start(t); o2.start(t); vib.start(t);
-    theremin = { o, o2, g, vib, vibGain, lp };
+    theremin = { o, o2, g, gVol, vib, vibGain, lp };
   }
 
   function setThereminFreq(freq) {
@@ -627,7 +641,7 @@ const AudioEngine = (() => {
     const t = ctx.currentTime;
     const v = Math.max(0, Math.min(1, x01));
     const curve = v * v; /* quadrática: mais controlo nos volumes baixos */
-    theremin.g.gain.setTargetAtTime(0.001 + curve * 0.5, t, 0.05);
+    theremin.gVol.gain.setTargetAtTime(0.001 + curve * 0.9, t, 0.06);
   }
 
   function stopTheremin() {
@@ -1161,6 +1175,7 @@ function openGroove() {
 let thereminLayoutHandler = null;
 
 function restorePadsIfTheremin() {
+  document.body.classList.remove('allow-landscape');
   const oldField = document.querySelector('[data-theremin], [data-groove]');
   if (oldField) {
     if (thereminLayoutHandler) {
@@ -1182,6 +1197,13 @@ function openTheremin(inst, scale) {
   restorePadsIfTheremin();
   armedPad = null;
   ui.armHint.style.display = 'none';
+  document.body.classList.add('allow-landscape');
+  const relayout = () => {
+    const evt = new Event('resize');
+    window.dispatchEvent(evt);
+  };
+  setTimeout(relayout, 100);
+  setTimeout(relayout, 400);
 
   const field = document.createElement('div');
   field.className = 'theremin-field';
@@ -1247,30 +1269,30 @@ function openTheremin(inst, scale) {
     AudioEngine.startTheremin(freq);
     const rect = field.getBoundingClientRect();
     AudioEngine.setThereminVolume(1 - (e.clientY - rect.top) / rect.height);
-    lockPortrait();
     playing = true;
     lastIdx = idx;
     highlight(idx);
+    /* Bola: posição do dedo relativa AO CAMPO (clientX/Y são
+       coordenadas do ecrã inteiro; sem subtrair a origem do campo
+       a bola aparecia deslocada para baixo). */
     spot.style.display = 'block';
-    spot.style.left = e.clientX + 'px';
-    spot.style.top = e.clientY + 'px';
+    spot.style.left = (e.clientX - rect.left) + 'px';
+    spot.style.top = (e.clientY - rect.top) + 'px';
     field.setPointerCapture(e.pointerId);
   });
   field.addEventListener('pointermove', (e) => {
     if (!playing) return;
-    spot.style.left = e.clientX + 'px';
-    spot.style.top = e.clientY + 'px';
+    const rect = field.getBoundingClientRect();
+    spot.style.left = (e.clientX - rect.left) + 'px';
+    spot.style.top = (e.clientY - rect.top) + 'px';
     const { freq, idx } = freqFromX(e.clientX);
     if (idx !== lastIdx) {
       AudioEngine.setThereminFreq(freq);
       lastIdx = idx;
       highlight(idx);
     }
-    /* Drift: Y do dedo molda o brilho (cima = brilhante,
-       baixo = escuro), como no Etherpad. */
     /* Volume expressivo: Y do dedo = antena de volume
        (cima = forte, baixo = suave). */
-    const rect = field.getBoundingClientRect();
     AudioEngine.setThereminVolume(1 - (e.clientY - rect.top) / rect.height);
   });
   const end = () => {
