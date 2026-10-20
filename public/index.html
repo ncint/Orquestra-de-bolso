@@ -404,6 +404,53 @@ const AudioEngine = (() => {
   const MAX_NOTE_GROUPS = 8;
   let noteGroups = [];
 
+  /* Samples reais (CC0, pack 'Percussion Samples' de Sassaby,
+     freesound.org/people/Sassaby/packs/28352). Carregados sob
+     pedido; se o ficheiro faltar ou falhar, os instrumentos usam a
+     síntese. */
+  const SAMPLES = {
+    'djembe-grave': 'samples/509892__sassaby__bata-iya-tone.wav',
+    'djembe-slap': 'samples/509893__sassaby__bata-iya-slap.wav',
+    'cymbal-aberto': 'samples/545240__sassaby__china-trash-cymbal.wav',
+    'cymbal-fechado': 'samples/512075__sassaby__electrocymbal-choke.wav',
+    'shaker-seco': 'samples/506383__sassaby__shekere-hit.wav',
+    'shaker-leve': 'samples/511272__sassaby__mele-slap.wav',
+    'clap-forte': 'samples/531787__sassaby__caixa-vazada-hit.wav',
+    'clap-suave': 'samples/531785__sassaby__caixa-rim-hit-side-stick.wav',
+    'timbales-casara': 'samples/533095__sassaby__timbales-high-macho.wav',
+    'timbales-rim': 'samples/533089__sassaby__timbales-high-rimshot-macho.wav',
+  };
+  const sampleBuffers = new Map();
+  const sampleLoading = new Set();
+
+  function loadSample(key) {
+    if (sampleBuffers.has(key) || sampleLoading.has(key) || !SAMPLES[key]) {
+      return;
+    }
+    sampleLoading.add(key);
+    fetch(SAMPLES[key])
+      .then((r) => { if (!r.ok) throw new Error('http ' + r.status); return r.arrayBuffer(); })
+      .then((ab) => ensure().decodeAudioData(ab))
+      .then((buf) => { sampleBuffers.set(key, buf); })
+      .catch(() => { /* fica a síntese */ })
+      .finally(() => { sampleLoading.delete(key); });
+  }
+
+  function playSample(key) {
+    const buf = sampleBuffers.get(key);
+    if (!buf) return false;
+    const t = ctx.currentTime + 0.005;
+    const group = beginNote(t + buf.duration);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const g = ctx.createGain();
+    g.gain.value = 1.0;
+    src.connect(g).connect(master);
+    src.start(t);
+    group.gains.push(g);
+    return true;
+  }
+
   function ensure() {
     if (!ctx) {
       ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -936,17 +983,52 @@ const AudioEngine = (() => {
     }
   }
 
+  /* Percussão: tenta o sample real; se ainda não carregado (ou
+     falhou), usa a síntese e pede o sample em background para os
+     próximos toques. */
+  function playPercOrSample(instId, freq, pad, synthFn) {
+    ensure();
+    const keys = {
+      djembe: ['djembe-grave', 'djembe-slap'],
+      cymbal: ['cymbal-aberto', 'cymbal-fechado'],
+      shaker: ['shaker-seco', 'shaker-leve'],
+      clap: ['clap-forte', 'clap-suave'],
+      timbales: ['timbales-casara', 'timbales-rim'],
+    }[instId];
+    const key = keys ? keys[Number(pad) || 0] : null;
+    if (key) {
+      if (playSample(key)) return;
+      loadSample(key);
+    }
+    if (synthFn === playDjembe || synthFn === playTimbales) synthFn(freq, pad);
+    else synthFn(freq);
+  }
+
+  function preloadPercussion(instId) {
+    const keys = {
+      djembe: ['djembe-grave', 'djembe-slap'],
+      cymbal: ['cymbal-aberto', 'cymbal-fechado'],
+      shaker: ['shaker-seco', 'shaker-leve'],
+      clap: ['clap-forte', 'clap-suave'],
+      timbales: ['timbales-casara', 'timbales-rim'],
+    }[instId];
+    if (keys) {
+      ensure();
+      keys.forEach(loadSample);
+    }
+  }
+
   function play(instrumentId, freq) {
     if (instrumentId === 'bells') playBells(freq);
     else if (instrumentId === 'handpan') playHandpan(freq);
     else if (instrumentId === 'fmbell') playFMBell(freq);
     else if (instrumentId === 'subbass') playSubBass(freq);
     else if (instrumentId === 'formant') playFormant(freq);
-    else if (instrumentId === 'djembe') playDjembe(freq, arguments[2]);
-    else if (instrumentId === 'cymbal') playCymbal(freq);
-    else if (instrumentId === 'shaker') playShaker(freq);
-    else if (instrumentId === 'clap') playClap(freq);
-    else if (instrumentId === 'timbales') playTimbales(freq, arguments[2]);
+    else if (instrumentId === 'djembe') playPercOrSample('djembe', freq, arguments[2], playDjembe);
+    else if (instrumentId === 'cymbal') playPercOrSample('cymbal', freq, arguments[2], playCymbal);
+    else if (instrumentId === 'shaker') playPercOrSample('shaker', freq, arguments[2], playShaker);
+    else if (instrumentId === 'clap') playPercOrSample('clap', freq, arguments[2], playClap);
+    else if (instrumentId === 'timbales') playPercOrSample('timbales', freq, arguments[2], playTimbales);
   }
 
   function setVolume(v) {
@@ -1022,6 +1104,7 @@ const AudioEngine = (() => {
     startTheremin, setThereminFreq, setThereminTone, setThereminVolume, stopTheremin,
     startGroove, stopGroove, setGroovePattern, setGrooveBpm,
     groovePatternNames,
+    preloadPercussion,
   };
 })();
 
@@ -1198,6 +1281,15 @@ const PERC_LABELS = {
   timbales: ['CASARA', 'RIM'],
 };
 
+/* Chave de sample por instrumento+botão de percussão. */
+const PERC_SAMPLES = {
+  djembe: ['djembe-grave', 'djembe-slap'],
+  cymbal: ['cymbal-aberto', 'cymbal-fechado'],
+  shaker: ['shaker-seco', 'shaker-leve'],
+  clap: ['clap-forte', 'clap-suave'],
+  timbales: ['timbales-casara', 'timbales-rim'],
+};
+
 function openInstrument(instId, noteObjs, place) {
   const inst = SESSION_CONFIG.instruments[instId];
   if (!inst) return;
@@ -1224,6 +1316,10 @@ function openInstrument(instId, noteObjs, place) {
   }
 
   restorePadsIfTheremin();
+
+  if (PERC_LABELS[instId]) {
+    try { AudioEngine.preloadPercussion(instId); } catch (_) {}
+  }
 
   const octave = Math.pow(2, inst.octaveShift || 0);
   const notes = noteObjs || inst.notes.map((i) => ({
