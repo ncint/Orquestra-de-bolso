@@ -730,9 +730,11 @@ function openTheremin(inst, scale) {
   field.appendChild(spot);
 
   const octave = Math.pow(2, inst.octaveShift || 0);
+  /* Gerar da mais aguda para a mais grave: o campo fica com os
+     agudos em cima e os graves em baixo (linha 0 = topo). */
   const rows = [];
-  for (let oct = 0; oct <= 1; oct++) {
-    scale.notes.forEach((n) => {
+  for (let oct = 1; oct >= 0; oct--) {
+    scale.notes.slice().reverse().forEach((n) => {
       rows.push({
         name: n.name + (oct === 1 ? '↑' : ''),
         freq: n.freq * octave * Math.pow(2, oct),
