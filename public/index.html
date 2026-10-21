@@ -375,6 +375,17 @@ const SCALES = {
 const SESSION_CONFIG = {
   scale: 're-menor-natural',
   places: 50,
+  /* Variedades melódicas: dentro de um naipe, cada participante recebe
+     um PAR diferente escolhido aleatoriamente — o conjunto do naipe
+     forma a melodia. Cobertura pensada para Ré dórico. */
+  noteVariants: {
+    bells: [[0, 4], [2, 6], [1, 5], [3, 6]],
+    handpan: [[2, 6], [0, 3], [1, 4], [5, 6]],
+    fmbell: [[3, 5], [0, 4], [2, 6], [1, 3]],
+    formant: [[2, 4], [5, 6], [0, 2], [3, 5]],
+    pad: [[0, 6], [1, 4], [2, 5], [0, 3]],
+    pluck: [[4, 6], [1, 5], [2, 3], [0, 6]],
+  },
   placesPerSection: 10,
   instruments: {
     bells: {
@@ -1372,7 +1383,7 @@ const PERC_SAMPLES = {
   timbales: ['timbales-casara', 'timbales-rim'],
 };
 
-function openInstrument(instId, noteObjs, place) {
+function openInstrument(instId, noteObjs, place, pairIdx) {
   const inst = SESSION_CONFIG.instruments[instId];
   if (!inst) return;
   currentInstrument = instId;
@@ -1398,7 +1409,15 @@ function openInstrument(instId, noteObjs, place) {
   }
 
   const octave = Math.pow(2, inst.octaveShift || 0);
-  const notes = noteObjs || inst.notes.map((i) => ({
+  /* Par de notas: o sorteio pode ter atribuído uma variante melódica
+     (pairIdx); sem variants (percussão) ou sem sorteio, usa o par
+     base do instrumento. */
+  let noteIndices = inst.notes;
+  if (Number.isInteger(pairIdx) && pairIdx >= 0) {
+    const variants = SESSION_CONFIG.noteVariants[instId];
+    if (variants && variants[pairIdx]) noteIndices = variants[pairIdx];
+  }
+  const notes = noteObjs || noteIndices.map((i) => ({
     name: scale.notes[i].name,
     freq: scale.notes[i].freq * octave,
   }));
@@ -1470,8 +1489,15 @@ const sorteioBtn = document.getElementById('sorteioBtn');
 
 sorteioBtn.addEventListener('click', () => {
   const instId = SORTEABLE[Math.floor(Math.random() * SORTEABLE.length)];
-  try { localStorage.setItem('ob-sorteado', instId); } catch (_) {}
-  openInstrument(instId);
+  const variants = SESSION_CONFIG.noteVariants[instId];
+  const pairIdx = variants
+    ? Math.floor(Math.random() * variants.length)
+    : -1;
+  try {
+    localStorage.setItem('ob-sorteado', instId);
+    localStorage.setItem('ob-par', String(pairIdx));
+  } catch (_) {}
+  openInstrument(instId, null, 0, pairIdx);
 });
 
 document.querySelectorAll('.choose-btn').forEach((b) => {
