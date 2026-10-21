@@ -7,222 +7,243 @@
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; }
-  /* Sistema visual: fundo azul-noite com vinheta suave; acentos
-     quentes (âmbar/dourado) para contraste; cartões com profundidade. */
+
+  /* ===== Sistema editorial: marfim, carvão, ocre ===== */
   :root {
-    --bg: #12141d;
-    --bg-2: #1a1d2b;
-    --card: #232739;
-    --card-hi: #2d3247;
-    --line: #3a4056;
-    --text: #f2f3f7;
-    --text-dim: #a7abbd;
-    --accent: #e8b04b;
-    --accent-soft: rgba(232,176,75,.14);
+    --bg: #F9F8F6;
+    --surface: #F4F1EA;
+    --ink: #1A1A1A;
+    --ink-2: #8C8C8C;
+    --line: #E3DED3;
+    --accent: #B0762D;
+    --accent-ink: #FFFFFF;
+    --r: 14px;
+    --pad: 20px;
   }
+
   @media (orientation: landscape) {
     body:not(.allow-landscape)::after {
-      content: '📵 Roda o telemóvel para a vertical';
-      position: fixed; inset: 0; background: #171a24; z-index: 99;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 20px; font-weight: 600;
+      content: 'Roda o telemóvel para a vertical';
+      position: fixed; inset: 0; background: var(--bg); color: var(--ink);
+      z-index: 99; display: flex; align-items: center; justify-content: center;
+      font-size: 18px; font-weight: 600; letter-spacing: .3px;
     }
   }
-  /* Theremin: o campo cresce com o ecrã na horizontal — a app põe
-     body.allow-landscape ao abrir o theremin e retira-o ao sair. */
-  body.allow-landscape {
-    height: auto; min-height: 100vh;
-  }
-  body.allow-landscape .theremin-field {
-    min-height: 70vh;
-  }
+  body.allow-landscape { height: auto; min-height: 100vh; }
+  body.allow-landscape .theremin-field { min-height: 70vh; }
+
   body {
-    margin: 0; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
-    background:
-      radial-gradient(120% 90% at 50% 0%, var(--bg-2) 0%, var(--bg) 58%);
-    background-attachment: fixed;
-    color: var(--text); overscroll-behavior: none;
+    margin: 0;
+    font-family: -apple-system, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+    background: var(--bg); color: var(--ink);
+    overscroll-behavior: none;
     display: flex; flex-direction: column;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   }
+
+  /* ===== A. Cabeçalho ===== */
   header {
-    padding: 14px 18px 10px; display: flex; justify-content: space-between;
-    align-items: center; flex: 0 0 auto;
-    border-bottom: 1px solid rgba(255,255,255,.06);
+    padding: 14px var(--pad) 12px;
+    display: flex; justify-content: space-between; align-items: center;
+    flex: 0 0 auto; border-bottom: 1px solid var(--line);
   }
   header strong {
-    font-size: 17px; letter-spacing: .3px;
-    background: linear-gradient(90deg, var(--text), #cdd2e4);
-    -webkit-background-clip: text; background-clip: text;
-    -webkit-text-fill-color: transparent;
+    font-size: 13px; font-weight: 600; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--ink);
   }
-  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
-         background: #e06464; margin-right: 5px; vertical-align: middle;
-         box-shadow: 0 0 0 3px rgba(224,100,100,.18); }
-  .dot.on { background: #5fd68a; box-shadow: 0 0 0 3px rgba(95,214,138,.18); }
-  .connected { font-size: 13px; color: var(--text-dim); }
+  .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+         background: var(--ink-2); margin-right: 6px; vertical-align: 1px; }
+  .dot.on { background: var(--accent); }
+  .connected { font-size: 12px; color: var(--ink-2); }
 
   .screen { display: none; flex: 1 1 auto; flex-direction: column;
-            width: 100%; padding: 0 16px 16px; min-height: 0; }
+            width: 100%; padding: 0 var(--pad) var(--pad); min-height: 0; }
   .screen.active { display: flex; }
 
   button {
-    font-family: inherit; font-weight: 600;
-    background: var(--card); color: var(--text);
+    font-family: inherit; font-weight: 600; font-size: 15px;
+    background: var(--surface); color: var(--ink);
     border: 1px solid var(--line);
-    padding: 12px 16px; border-radius: 14px; cursor: pointer;
-    box-shadow: 0 2px 6px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.05);
-    transition: transform .08s, box-shadow .12s, background .12s;
+    padding: 13px 18px; border-radius: var(--r); cursor: pointer;
+    transition: background .15s, color .15s, transform .1s;
   }
-  button:active {
-    transform: scale(.97);
-    box-shadow: 0 1px 2px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.03);
-  }
+  button:active { transform: scale(.98); }
 
-  /* Ecrã de escolha */
-  #screen-menu { justify-content: center; max-width: 460px; margin: 0 auto; }
-  #screen-menu { gap: 2px; }
-  .sorteio-btn {
-    display: block; width: 100%; margin: 0 0 16px;
-    font-size: 18px; padding: 18px;
-    background: linear-gradient(135deg, #8a5d2b, #b8893a);
-    border-color: #e8b04b;
-    box-shadow: 0 4px 18px rgba(232,176,75,.25), inset 0 1px 0 rgba(255,255,255,.2);
-  }
-  .menu-title {
-    text-align: center; margin: 6px 0 14px;
-  }
+  /* ===== C. Acção principal: Sortear ===== */
+  #screen-menu { justify-content: center; align-items: center; gap: 0; }
+  .menu-title { text-align: center; margin-bottom: 36px; }
   .menu-title .t {
-    display: block; font-size: 21px; font-weight: 700;
-    letter-spacing: .4px;
+    display: block; font-size: 30px; font-weight: 700; letter-spacing: -.02em;
+    color: var(--ink); line-height: 1.15;
   }
   .menu-title .s {
-    display: block; font-size: 13px; color: var(--text-dim); margin-top: 4px;
+    display: block; font-size: 14px; color: var(--ink-2); margin-top: 10px;
+    letter-spacing: .02em;
   }
+  .sorteio-btn {
+    width: 100%; max-width: 340px;
+    font-size: 17px; font-weight: 600; letter-spacing: .02em;
+    padding: 20px 24px;
+    background: var(--accent); color: var(--accent-ink);
+    border: none; border-radius: var(--r);
+  }
+  .sorteio-btn:active { background: #99651f; }
+
+  /* ===== D. Escolha livre (secundária) ===== */
+  .free-toggle {
+    width: 100%; max-width: 340px;
+    margin-top: 14px; padding: 13px 18px;
+    font-size: 14px; font-weight: 500; color: var(--ink-2);
+    background: transparent; border: 1px solid var(--line);
+  }
+  .free-choice {
+    width: 100%; max-width: 340px;
+    margin-top: 10px; display: none; flex-direction: column; gap: 8px;
+  }
+  .free-choice.open { display: flex; }
   .choose-btn {
     display: flex; align-items: center; gap: 14px;
-    width: 100%; font-size: 18px; padding: 16px;
-    margin-bottom: 10px; text-align: left;
-    position: relative; overflow: hidden;
-  }
-  .choose-btn .ico {
-    font-size: 26px; flex: 0 0 auto;
-    width: 46px; height: 46px; display: flex; align-items: center;
-    justify-content: center; border-radius: 13px;
-    background: var(--accent-soft);
+    width: 100%; font-size: 15px; padding: 14px 16px;
+    margin: 0; text-align: left; position: relative;
+    background: var(--surface);
   }
   .choose-btn .txt { flex: 1 1 auto; min-width: 0; }
+  .choose-btn .txt b { font-weight: 600; }
   .choose-btn small { display: block; font-weight: 400; font-size: 12.5px;
-                      color: var(--text-dim); margin-top: 3px; }
-  /* Acento lateral por naipe */
+                      color: var(--ink-2); margin-top: 2px; }
   .choose-btn::before {
-    content: ''; position: absolute; left: 0; top: 10%; bottom: 10%;
-    width: 4px; border-radius: 0 4px 4px 0;
-    background: var(--sec, var(--accent));
+    content: ''; position: absolute; left: 0; top: 12px; bottom: 12px;
+    width: 3px; border-radius: 3px; background: var(--sec, var(--ink-2));
   }
-  .choose-btn[data-inst="bells"]     { --sec: #7db8e8; }
-  .choose-btn[data-inst="handpan"]   { --sec: #e8b04b; }
-  .choose-btn[data-inst="fmbell"]    { --sec: #c9a8e8; }
-  .choose-btn[data-inst="formant"]   { --sec: #e89dc4; }
-  .choose-btn[data-inst="pad"]       { --sec: #9db8e8; }
-  .choose-btn[data-inst="pluck"]     { --sec: #e8d47d; }
-  .choose-btn[data-inst="djembe"]    { --sec: #c98a5d; }
-  .choose-btn[data-inst="cymbal"]     { --sec: #d8c95d; }
-  .choose-btn[data-inst="shaker"]    { --sec: #9dc9b8; }
-  .choose-btn[data-inst="clap"]       { --sec: #e8b87d; }
-  .choose-btn[data-inst="timbales"]   { --sec: #c97d7d; }
-  .choose-btn[data-inst="theremin"]   { --sec: #9db8e8; }
+  .choose-btn[data-inst="bells"]     { --sec: #B0762D; }
+  .choose-btn[data-inst="handpan"]   { --sec: #7A8C5A; }
+  .choose-btn[data-inst="fmbell"]    { --sec: #8C7AB0; }
+  .choose-btn[data-inst="formant"]   { --sec: #B07A94; }
+  .choose-btn[data-inst="pad"]       { --sec: #6B8FA8; }
+  .choose-btn[data-inst="pluck"]     { --sec: #A8A25A; }
+  .choose-btn[data-inst="djembe"]    { --sec: #B0895A; }
+  .choose-btn[data-inst="cymbal"]    { --sec: #9A9A85; }
+  .choose-btn[data-inst="shaker"]    { --sec: #7FA89A; }
+  .choose-btn[data-inst="clap"]      { --sec: #B0946A; }
+  .choose-btn[data-inst="timbales"]  { --sec: #B06A6A; }
+  .choose-btn[data-inst="theremin"]  { --sec: #6B7FA8; }
 
-  /* Ecrã de instrumento */
-  #screen-instrument { max-width: 480px; margin: 0 auto; }
-  .inst-title { text-align: center; margin: 6px 0 2px; font-size: 23px;
-                font-weight: 700; letter-spacing: .3px; }
-  .inst-sub { text-align: center; font-size: 13px; color: var(--text-dim);
-              margin: 0 0 10px; }
-  .audio-status { text-align: center; font-size: 13px; padding: 7px 14px;
-                  border-radius: 999px; margin: 0 auto 12px; width: fit-content; }
-  .audio-status.off { background: #4a2f2f; color: #ffb4a6; }
-  .audio-status.on  { background: #274434; color: #a8e6b0; display: none; }
+  /* ===== B/E/F. Ecrã de instrumento ===== */
+  #screen-instrument { max-width: 480px; margin: 0 auto; width: 100%; }
+  .inst-title {
+    text-align: center; margin: 18px 0 2px; font-size: 26px;
+    font-weight: 700; letter-spacing: -.01em; color: var(--ink);
+  }
+  .inst-sub { text-align: center; font-size: 13px; color: var(--ink-2);
+              margin: 0 0 14px; }
+
+  /* Zona de controlos compacta: áudio + modo + volume */
+  .controls {
+    border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+    padding: 10px 0; margin-bottom: 14px;
+  }
+  .audio-status { text-align: center; font-size: 12.5px; padding: 6px 12px;
+                  border-radius: 999px; margin: 0 auto 10px; width: fit-content; }
+  .audio-status.off { background: transparent; color: var(--ink-2);
+                     border: 1px solid var(--line); }
+  .audio-status.on  { background: transparent; color: var(--accent);
+                     border: 1px solid var(--accent); display: none; }
+
   .mode-row {
-    display: flex; align-items: center; gap: 8px;
+    display: flex; align-items: stretch; gap: 0;
     margin: 0 auto 10px; max-width: 420px;
+    border: 1px solid var(--line); border-radius: var(--r); overflow: hidden;
   }
-  .mode-row .mode-label { font-size: 13px; opacity: .8; }
+  .mode-row .mode-label {
+    display: none; /* label textual vive dentro dos botões */
+  }
   .mode-btn {
-    font-size: 13px; padding: 8px 12px; flex: 1 1 auto;
-    background: var(--card);
+    flex: 1 1 auto; font-size: 13.5px; padding: 11px 8px;
+    background: transparent; border: none; border-radius: 0;
+    color: var(--ink-2); display: flex; align-items: center;
+    justify-content: center; gap: 7px;
   }
-  .mode-btn.sel { background: #4a6bff; border-color: #4a6bff; }
-  .motion-btn {
-    display: block; width: 100%; margin: 0 auto 10px;
-    font-size: 15px; padding: 12px; max-width: 420px;
-    background: #5d4a8f; border-color: #8f7ac9;
-  }
-  .motion-btn.ok { background: #2e4a34; border-color: #4a9b6d; }
-  .motion-btn.err { background: #5d3a3a; border-color: #9b4a4a; }
+  .mode-btn + .mode-btn { border-left: 1px solid var(--line); }
+  .mode-btn.sel { background: var(--ink); color: var(--bg); }
+  .mode-btn svg { width: 15px; height: 15px; flex: 0 0 auto; }
+  .mode-btn.sel svg { color: var(--bg); }
+  .mode-btn svg { color: var(--ink-2); }
+  .mode-btn.sel svg { color: var(--bg); }
 
-  .note-pads { display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+  .motion-btn {
+    display: block; width: 100%; max-width: 420px; margin: 0 auto 10px;
+    font-size: 13.5px; padding: 12px;
+    background: transparent; color: var(--accent);
+    border: 1px solid var(--accent);
+  }
+  .motion-btn.ok { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .motion-btn.err { color: #A34E3F; border-color: #A34E3F; }
+
+  .arm-hint { text-align: center; font-size: 12.5px; color: var(--ink-2);
+              margin: 0 0 12px; letter-spacing: .01em; }
+
+  /* Pads de nota */
+  .note-pads { display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
                flex: 1 1 auto; min-height: 0; }
   .note-pad {
-    border: none; border-radius: 20px; color: #10131a;
+    border: none; border-radius: var(--r); color: var(--ink);
     display: flex; flex-direction: column; align-items: center;
-    justify-content: center; min-height: 220px;
-    transition: filter .06s, transform .08s, box-shadow .12s;
+    justify-content: center; min-height: 210px;
+    transition: filter .06s, transform .08s;
     touch-action: manipulation; user-select: none;
-    box-shadow: 0 4px 14px rgba(0,0,0,.35), inset 0 2px 0 rgba(255,255,255,.35);
+    border: 1px solid rgba(26,26,26,.10);
   }
   .note-pad:active { transform: scale(.97); }
   .note-pad.armed {
-    outline: 5px solid var(--text);
-    outline-offset: -5px;
-    filter: brightness(1.18);
-    box-shadow: 0 0 0 6px var(--accent-soft), 0 4px 14px rgba(0,0,0,.4);
+    outline: 4px solid var(--ink); outline-offset: -4px;
   }
-  .note-pad .note-name { font-size: 42px; font-weight: 800; line-height: 1; }
-  .note-pad .note-hint { font-size: 13px; font-weight: 400; opacity: .7;
-                         margin-top: 8px; }
-  .note-pad.pressed { filter: brightness(1.55); }
-  .note-pad.ringing { animation: ring .5s ease-out; }
+  .note-pad.pressed { filter: brightness(.92); }
+  .note-pad.ringing { animation: ring .45s ease-out; }
   @keyframes ring {
-    0% { box-shadow: 0 0 0 0 rgba(255,255,255,.55); }
-    100% { box-shadow: 0 0 0 34px rgba(255,255,255,0); }
+    0% { box-shadow: 0 0 0 0 rgba(26,26,26,.25); }
+    100% { box-shadow: 0 0 0 26px rgba(26,26,26,0); }
   }
-  .back-btn { margin-top: 14px; font-size: 13px; padding: 9px 16px;
-              align-self: center; background: transparent; color: var(--text-dim);
-              border-color: transparent; box-shadow: none; }
+  .note-pad .note-name { font-size: 40px; font-weight: 700; line-height: 1;
+                         letter-spacing: -.01em; }
+  .note-pad .note-hint { font-size: 12px; font-weight: 400; opacity: .55;
+                         margin-top: 8px; }
+
+  /* F. Volume (compacto) */
   .volume-row {
-    display: flex; align-items: center; gap: 10px;
-    margin-top: 14px; padding: 10px 14px;
-    background: var(--card); border-radius: 12px;
-    border: 1px solid var(--line);
+    display: flex; align-items: center; gap: 12px;
+    margin-top: 14px; padding: 0 2px;
   }
-  .volume-row label { font-size: 13px; color: var(--text-dim); white-space: nowrap; }
-  .volume-row input[type="range"] { flex: 1 1 auto; accent-color: var(--accent); }
-  /* Fundo inspirado no keffiyeh (lenço palestiniano): rede em
-     xadrez diagonal sobre fundo escuro, construída com gradientes
-     CSS — sem ficheiros de imagem. */
+  .volume-row label { font-size: 12.5px; color: var(--ink-2); white-space: nowrap; }
+  .volume-row input[type="range"] {
+    flex: 1 1 auto; accent-color: var(--accent); height: 28px;
+  }
+
+  .back-btn {
+    margin: 14px auto 0; font-size: 13px; padding: 10px 16px;
+    align-self: center; background: transparent; color: var(--ink-2);
+    border: 1px solid transparent;
+  }
+  .back-btn:active { color: var(--ink); }
+
+  /* Theremin (estilos funcionais preservados, adaptados ao tema) */
   .theremin-field {
     flex: 1 1 auto; min-height: 0; width: 100%;
-    background: linear-gradient(#1c2030, #2a3050);
-    border: 1px solid #46506a; border-radius: 20px;
+    background: var(--surface);
+    border: 1px solid var(--line); border-radius: var(--r);
     position: relative; overflow: hidden;
     touch-action: none; user-select: none;
   }
   .theremin-note {
     position: absolute; top: 0; bottom: 0; text-align: center;
-    font-size: 14px; font-weight: 700;
-    color: rgba(255,255,255,.75);
-    text-shadow: 0 1px 3px rgba(0,0,0,.9);
+    font-size: 13px; font-weight: 600; color: rgba(26,26,26,.45);
     pointer-events: none;
     display: flex; align-items: center; justify-content: center;
   }
-  .theremin-note.sel {
-    color: #fff;
-    background: rgba(255,255,255,.08);
-  }
+  .theremin-note.sel { color: var(--ink); background: rgba(26,26,26,.06); }
   .theremin-spot {
     position: absolute; width: 54px; height: 54px; border-radius: 50%;
-    background: rgba(125,184,232,.35);
-    border: 2px solid #7db8e8;
+    background: rgba(176,118,45,.18);
+    border: 2px solid var(--accent);
     transform: translate(-50%, -50%);
     pointer-events: none; display: none;
   }
@@ -230,91 +251,92 @@
 </head>
 <body>
 <header>
-  <strong>🎼 Orquestra de Bolso</strong>
+  <strong>Orquestra de Bolso</strong>
   <span class="connected"><span class="dot" id="dot"></span><span id="cnt">…</span></span>
 </header>
 
 <!-- Ecrã: escolha do instrumento -->
 <div class="screen active" id="screen-menu">
   <div class="menu-title">
-    <span class="t">Orquestra de Bolso</span>
-    <span class="s">Carrega no dado e recebe o teu instrumento</span>
+    <span class="t">Orquestra<br>de Bolso</span>
+    <span class="s">Recebe o teu instrumento</span>
   </div>
-  <button class="sorteio-btn" id="sorteioBtn">🎲 Sortear o meu instrumento</button>
+  <button class="sorteio-btn" id="sorteioBtn">Sortear instrumento</button>
+  <button class="free-toggle" id="freeToggle">Escolher instrumento</button>
   <!-- Escolha livre escondida por defeito (sorteio é a experiência
        do participante). O maestro pode revelá-la com ?config=1. -->
-  <div class="free-choice" id="freeChoice" style="display:none">
+  <div class="free-choice" id="freeChoice">
   <button class="choose-btn" data-inst="bells">
-    <span class="ico">🔔</span>
-    <span class="txt">Bells
+    <span class="txt"><b>Bells
+  </b>
       <small>Sinos</small>
     </span>
   </button>
   <button class="choose-btn" data-inst="handpan">
-    <span class="ico">🥁</span>
-    <span class="txt">Handpan
+    <span class="txt"><b>Handpan
+  </b>
       <small>Tambor de aço suave</small>
     </span>
   </button>
   <button class="choose-btn" data-inst="fmbell">
-    <span class="ico">✨</span>
-    <span class="txt">FM Bell
+    <span class="txt"><b>FM Bell
+  </b>
       <small>Sino elétrico</small>
     </span>
   </button>
 
   <button class="choose-btn" data-inst="formant">
-    <span class="ico">🗣</span>
-    <span class="txt">Coro Formant
+    <span class="txt"><b>Coro Formant
+  </b>
       <small>Coro sintético</small>
     </span>
   </button>
   <button class="choose-btn" data-inst="pad">
-    <span class="ico">🌌</span>
-    <span class="txt">Pad
+    <span class="txt"><b>Pad
+  </b>
       <small>Textura ambiente</small>
     </span>
   </button>
   <button class="choose-btn" data-inst="pluck">
-    <span class="ico">💫</span>
-    <span class="txt">Pluck
+    <span class="txt"><b>Pluck
+  </b>
       <small>Synth analógico</small>
     </span>
   </button>
   <button class="choose-btn" data-inst="djembe">
-    <span class="ico">🪘</span>
-    <span class="txt">Djembé
+    <span class="txt"><b>Djembé
+  </b>
       <small>Tambor africano</small>
     </span>
   </button>
   <button class="choose-btn" data-inst="cymbal">
-    <span class="ico">🥁</span>
-    <span class="txt">Prato
+    <span class="txt"><b>Prato
+  </b>
       <small>Prato</small>
     </span>
   </button>
   <button class="choose-btn" data-inst="shaker">
-    <span class="ico">🥫</span>
-    <span class="txt">Shaker · Maraca
+    <span class="txt"><b>Shaker · Maraca
+  </b>
       <small>Chocalho</small>
     </span>
   </button>
   <button class="choose-btn" data-inst="clap">
-    <span class="ico">👏</span>
-    <span class="txt">Clap
+    <span class="txt"><b>Clap
+  </b>
       <small>Palmas</small>
     </span>
   </button>
   <button class="choose-btn" data-inst="timbales">
-    <span class="ico">🛢</span>
-    <span class="txt">Timbales
+    <span class="txt"><b>Timbales
+  </b>
       <small>Tambor latino</small>
     </span>
   </button>
 
   <button class="choose-btn" data-inst="theremin">
-    <span class="ico">🕊</span>
-    <span class="txt">Theremin de Paz
+    <span class="txt"><b>Theremin de Paz
+  </b>
       <small>Um dedo, ou dois</small>
     </span>
   </button>
@@ -325,23 +347,30 @@
 <div class="screen" id="screen-instrument">
   <h1 class="inst-title" id="instTitle"></h1>
   <p class="inst-sub" id="instSub"></p>
-  <div class="audio-status off" id="audioOff">🔇 Toca num botão para activar o som</div>
-  <div class="audio-status on" id="audioOn">🔊 Som activo</div>
-  <p class="arm-hint" id="armHint">Toca numa nota para armar · Agita o telemóvel para tocar</p>
-  <div class="mode-row">
-    <span class="mode-label">Modo:</span>
-    <button class="mode-btn sel" id="modeShake">📳 Abanar</button>
-    <button class="mode-btn" id="modeTap">👆 Toque</button>
+  <div class="controls">
+    <div class="audio-status off" id="audioOff">Toque para activar o som</div>
+    <div class="audio-status on" id="audioOn">Som activo</div>
+    <p class="arm-hint" id="armHint">Arma a nota · Agita para tocar</p>
+    <div class="mode-row">
+      <button class="mode-btn sel" id="modeShake">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M8 8c-2 0-3 1.5-3 4s1 4 3 4"/><path d="M16 8c2 0 3 1.5 3 4s-1 4-3 4"/><path d="M7 4l2 2"/><path d="M17 4l-2 2"/></svg>
+        Movimento
+      </button>
+      <button class="mode-btn" id="modeTap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11V5a2 2 0 0 1 4 0v6"/><path d="M13 11V7a2 2 0 0 1 4 0v7a7 7 0 0 1-7 7h-1a7 7 0 0 1-7-7v-2a2 2 0 0 1 4 0"/></svg>
+        Toque
+      </button>
+    </div>
+    <button class="motion-btn" id="motionBtn" style="display:none">
+      Ativar movimento
+    </button>
+    <div class="volume-row">
+      <label for="volSlider">Volume</label>
+      <input type="range" id="volSlider" min="0" max="1.5" step="0.01" value="1">
+    </div>
   </div>
-  <button class="motion-btn" id="motionBtn" style="display:none">
-    📳 Ativar agitar no iPhone
-  </button>
   <div class="note-pads" id="pads"></div>
-  <div class="volume-row">
-    <label for="volSlider">🔊 Volume</label>
-    <input type="range" id="volSlider" min="0" max="1.5" step="0.01" value="1">
-  </div>
-  <button class="back-btn" id="backBtn">↩ Trocar de instrumento</button>
+  <button class="back-btn" id="backBtn">Trocar de instrumento</button>
 </div>
 
 <script>
@@ -1509,10 +1538,17 @@ document.querySelectorAll('.choose-btn').forEach((b) => {
 /* Modo config do maestro: ?config=1 revela a escolha livre. Sem
    ele, o participante vê apenas o sorteio — 'Trocar de instrumento'
    volta à página do dado (novo sorteio). */
+/* Escolha livre: visível a todos como acção secundária (toggle).
+   ?config=1 abre a grelha por defeito (modo maestro). */
 const isConfigMode = new URLSearchParams(location.search).get('config') === '1';
-if (isConfigMode) {
-  document.getElementById('freeChoice').style.display = '';
+const freeChoiceEl = document.getElementById('freeChoice');
+function setFreeChoice(open) {
+  freeChoiceEl.classList.toggle('open', open);
 }
+if (isConfigMode) setFreeChoice(true);
+document.getElementById('freeToggle').addEventListener('click', () => {
+  setFreeChoice(!freeChoiceEl.classList.contains('open'));
+});
 
 ui.backBtn.addEventListener('click', () => {
   if (placeAssignment) {
