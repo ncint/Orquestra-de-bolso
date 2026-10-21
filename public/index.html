@@ -10,13 +10,13 @@
 
   /* ===== Sistema editorial: marfim, carvão, ocre ===== */
   :root {
-    --bg: #F9F8F6;
-    --surface: #F4F1EA;
-    --ink: #1A1A1A;
-    --ink-2: #8C8C8C;
-    --line: #E3DED3;
-    --accent: #B0762D;
-    --accent-ink: #FFFFFF;
+    --bg: #12141D;
+    --surface: #1E2230;
+    --ink: #F2F3F7;
+    --ink-2: #A7ABBD;
+    --line: #3A4056;
+    --accent: #E8B04B;
+    --accent-ink: #201809;
     --r: 14px;
     --pad: 20px;
   }
@@ -87,7 +87,7 @@
     background: var(--accent); color: var(--accent-ink);
     border: none; border-radius: var(--r);
   }
-  .sorteio-btn:active { background: #99651f; }
+  .sorteio-btn:active { background: #C99736; }
 
   /* ===== D. Escolha livre (secundária) ===== */
   .free-toggle {
@@ -200,7 +200,7 @@
     justify-content: center; min-height: 210px;
     transition: filter .06s, transform .08s;
     touch-action: manipulation; user-select: none;
-    border: 1px solid rgba(26,26,26,.10);
+    border: 1px solid rgba(255,255,255,.08);
   }
   .note-pad:active { transform: scale(.97); }
   .note-pad.armed {
@@ -209,8 +209,8 @@
   .note-pad.pressed { filter: brightness(.92); }
   .note-pad.ringing { animation: ring .45s ease-out; }
   @keyframes ring {
-    0% { box-shadow: 0 0 0 0 rgba(26,26,26,.25); }
-    100% { box-shadow: 0 0 0 26px rgba(26,26,26,0); }
+    0% { box-shadow: 0 0 0 0 rgba(255,255,255,.3); }
+    100% { box-shadow: 0 0 0 26px rgba(255,255,255,0); }
   }
   .note-pad .note-name { font-size: 40px; font-weight: 700; line-height: 1;
                          letter-spacing: -.01em; }
@@ -244,14 +244,14 @@
   }
   .theremin-note {
     position: absolute; top: 0; bottom: 0; text-align: center;
-    font-size: 13px; font-weight: 600; color: rgba(26,26,26,.45);
+    font-size: 13px; font-weight: 600; color: rgba(242,243,247,.45);
     pointer-events: none;
     display: flex; align-items: center; justify-content: center;
   }
-  .theremin-note.sel { color: var(--ink); background: rgba(26,26,26,.06); }
+  .theremin-note.sel { color: var(--ink); background: rgba(255,255,255,.08); }
   .theremin-spot {
     position: absolute; width: 54px; height: 54px; border-radius: 50%;
-    background: rgba(176,118,45,.18);
+    background: rgba(232,176,75,.25);
     border: 2px solid var(--accent);
     transform: translate(-50%, -50%);
     pointer-events: none; display: none;
@@ -271,7 +271,7 @@
     <span class="s">Recebe o teu instrumento</span>
   </div>
   <button class="sorteio-btn" id="sorteioBtn">Sortear instrumento</button>
-  <button class="free-toggle" id="freeToggle">Escolher instrumento</button>
+  <button class="free-toggle" id="freeToggle">Escolha livre</button>
   <!-- Escolha livre escondida por defeito (sorteio é a experiência
        do participante). O maestro pode revelá-la com ?config=1. -->
   <div class="free-choice" id="freeChoice">
