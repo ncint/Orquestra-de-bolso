@@ -185,6 +185,15 @@
   /* Pads de nota */
   .note-pads { display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
                flex: 1 1 auto; min-height: 0; }
+  /* Escala completa (7 notas, escolha livre): grelha mais densa
+     para caber no ecrã sem scroll. */
+  .note-pads.full-scale {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .note-pads.full-scale .note-pad { min-height: 118px; }
+  .note-pads.full-scale .note-name { font-size: 26px; }
+  .note-pads.full-scale .note-hint { display: none; }
   .note-pad {
     border: none; border-radius: var(--r); color: var(--ink);
     display: flex; flex-direction: column; align-items: center;
@@ -1441,10 +1450,12 @@ function openInstrument(instId, noteObjs, place, pairIdx) {
 
   const octave = Math.pow(2, inst.octaveShift || 0);
   /* Par de notas: o sorteio pode ter atribuído uma variante melódica
-     (pairIdx); sem variants (percussão) ou sem sorteio, usa o par
-     base do instrumento. */
+     (pairIdx numérico); 'full' = toda a escala (escolha livre);
+     sem variants (percussão) ou sem sorteio, usa o par base. */
   let noteIndices = inst.notes;
-  if (Number.isInteger(pairIdx) && pairIdx >= 0) {
+  if (pairIdx === 'full') {
+    noteIndices = scale.notes.map((_, i) => i);
+  } else if (Number.isInteger(pairIdx) && pairIdx >= 0) {
     const variants = SESSION_CONFIG.noteVariants[instId];
     if (variants && variants[pairIdx]) noteIndices = variants[pairIdx];
   }
@@ -1453,6 +1464,7 @@ function openInstrument(instId, noteObjs, place, pairIdx) {
     freq: scale.notes[i].freq * octave,
   }));
   ui.pads.innerHTML = '';
+  ui.pads.classList.toggle('full-scale', notes.length > 2);
   armedPad = null;
   notes.forEach((note, i) => {
     const percLabels = PERC_LABELS[instId];
@@ -1531,8 +1543,15 @@ sorteioBtn.addEventListener('click', () => {
   openInstrument(instId, null, 0, pairIdx);
 });
 
+/* Escolha livre: instrumentos melódicos mostram TODA a escala
+   (7 notas); percussão mantém os 2 botões. O sorteio é que atribui
+   2 notas — aqui quem escolhe quer explorar o instrumento. */
 document.querySelectorAll('.choose-btn').forEach((b) => {
-  b.addEventListener('click', () => openInstrument(b.dataset.inst));
+  b.addEventListener('click', () => {
+    const instId = b.dataset.inst;
+    const isMelodic = !!SESSION_CONFIG.noteVariants[instId];
+    openInstrument(instId, null, 0, isMelodic ? 'full' : undefined);
+  });
 });
 
 /* Modo config do maestro: ?config=1 revela a escolha livre. Sem
