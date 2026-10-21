@@ -98,12 +98,6 @@
   .menu-title .s {
     display: block; font-size: 13px; color: var(--text-dim); margin-top: 4px;
   }
-  .menu-title .scale-pill {
-    display: inline-block; margin-top: 12px; padding: 7px 14px;
-    font-size: 13px; font-weight: 600; color: var(--accent);
-    background: var(--accent-soft); border: 1px solid rgba(232,176,75,.35);
-    border-radius: 999px;
-  }
   .choose-btn {
     display: flex; align-items: center; gap: 14px;
     width: 100%; font-size: 18px; padding: 16px;
@@ -245,7 +239,6 @@
   <div class="menu-title">
     <span class="t">Orquestra de Bolso</span>
     <span class="s">Carrega no dado e recebe o teu instrumento</span>
-    <span class="scale-pill" id="menuScale"></span>
   </div>
   <button class="sorteio-btn" id="sorteioBtn">🎲 Sortear o meu instrumento</button>
   <!-- Escolha livre escondida por defeito (sorteio é a experiência
@@ -254,75 +247,75 @@
   <button class="choose-btn" data-inst="bells">
     <span class="ico">🔔</span>
     <span class="txt">Bells
-      <small>Sinos — brilho, registo agudo</small>
+      <small>Sinos</small>
     </span>
   </button>
   <button class="choose-btn" data-inst="handpan">
     <span class="ico">🥁</span>
     <span class="txt">Handpan
-      <small>Ataque suave, corpo tonal — registo médio</small>
+      <small>Tambor de aço suave</small>
     </span>
   </button>
   <button class="choose-btn" data-inst="fmbell">
     <span class="ico">✨</span>
     <span class="txt">FM Bell
-      <small>Sino elétrico — brilho electrónico</small>
+      <small>Sino elétrico</small>
     </span>
   </button>
 
   <button class="choose-btn" data-inst="formant">
     <span class="ico">🗣</span>
     <span class="txt">Coro Formant
-      <small>Vogal sintética — coro robótico</small>
+      <small>Coro sintético</small>
     </span>
   </button>
   <button class="choose-btn" data-inst="pad">
     <span class="ico">🌌</span>
     <span class="txt">Pad
-      <small>Nuvem electrónica quente — textura ambiente</small>
+      <small>Textura ambiente</small>
     </span>
   </button>
   <button class="choose-btn" data-inst="pluck">
     <span class="ico">💫</span>
     <span class="txt">Pluck
-      <small>Synth analógico com filtro ressonante</small>
+      <small>Synth analógico</small>
     </span>
   </button>
   <button class="choose-btn" data-inst="djembe">
     <span class="ico">🪘</span>
     <span class="txt">Djembé
-      <small>Percussão — grave seco e slap agudo</small>
+      <small>Tambor africano</small>
     </span>
   </button>
   <button class="choose-btn" data-inst="cymbal">
     <span class="ico">🥁</span>
     <span class="txt">Prato
-      <small>Percussão metálica — decaimento longo</small>
+      <small>Prato</small>
     </span>
   </button>
   <button class="choose-btn" data-inst="shaker">
     <span class="ico">🥫</span>
     <span class="txt">Shaker · Maraca
-      <small>Sementes — curto e vivo</small>
+      <small>Chocalho</small>
     </span>
   </button>
   <button class="choose-btn" data-inst="clap">
     <span class="ico">👏</span>
     <span class="txt">Clap
-      <small>Palmas — corpo e presença</small>
+      <small>Palmas</small>
     </span>
   </button>
   <button class="choose-btn" data-inst="timbales">
     <span class="ico">🛢</span>
     <span class="txt">Timbales
-      <small>Tambor latino — casara e rim</small>
+      <small>Tambor latino</small>
     </span>
   </button>
 
   <button class="choose-btn" data-inst="theremin">
     <span class="ico">🕊</span>
     <span class="txt">Theremin de Paz
-      <small>Começa com um dedo — depois experimenta dois</small>
+      <small>Um dedo, ou dois</small>
     </span>
   </button>
   </div><!-- /free-choice -->
@@ -387,21 +380,21 @@ const SESSION_CONFIG = {
     bells: {
       id: 'bells',
       label: '🔔 Bells',
-      sub: 'Sino musical — brilho, registo agudo',
+      sub: 'Sinos brilhantes',
       notes: [0, 4],
       octaveShift: 1,   // uma oitava acima
     },
     handpan: {
       id: 'handpan',
       label: '🥁 Handpan',
-      sub: 'Ataque suave, corpo tonal — registo médio',
+      sub: 'Tambor de aço suave',
       notes: [2, 6],
       octaveShift: 0,
     },
     fmbell: {
       id: 'fmbell',
       label: '✨ FM Bell',
-      sub: 'Sino elétrico (FM) — brilho electrónico',
+      sub: 'Sino elétrico',
       notes: [3, 5],
       octaveShift: 1,
     },
@@ -409,56 +402,56 @@ const SESSION_CONFIG = {
     formant: {
       id: 'formant',
       label: '🗣 Coro Formant',
-      sub: 'Vogal sintética — coro robótico',
+      sub: 'Coro sintético',
       notes: [2, 4],
       octaveShift: 0,
     },
     pad: {
       id: 'pad',
       label: '🌌 Pad',
-      sub: 'Textura electrónica quente — nuvem de sintetizadores',
+      sub: 'Textura ambiente',
       notes: [0, 6],
       octaveShift: 0,
     },
     pluck: {
       id: 'pluck',
       label: '💫 Pluck',
-      sub: 'Pluck synth com filtro ressonante — electrónica analógica',
+      sub: 'Synth analógico',
       notes: [4, 6],
       octaveShift: 1,
     },
     djembe: {
       id: 'djembe',
       label: '🪘 Djembé',
-      sub: 'Percussão africana — grave seco e slap agudo',
+      sub: 'Tambor africano',
       notes: [0, 4],
       octaveShift: -1,
     },
     cymbal: {
       id: 'cymbal',
       label: '🥁 Prato',
-      sub: 'Percussão metálica — prato com decaimento longo',
+      sub: 'Prato metálico',
       notes: [3, 4],
       octaveShift: 1,
     },
     shaker: {
       id: 'shaker',
       label: '🥫 Shaker · Maraca',
-      sub: 'Sementes/chocalho — curto e vivo',
+      sub: 'Chocalho de sementes',
       notes: [2, 3],
       octaveShift: 1,
     },
     clap: {
       id: 'clap',
       label: '👏 Clap',
-      sub: 'Palmas — corpo e presença',
+      sub: 'Palmas',
       notes: [1, 3],
       octaveShift: 0,
     },
     timbales: {
       id: 'timbales',
       label: '🛢 Timbales',
-      sub: 'Tambor latino metálico — casara e rim',
+      sub: 'Tambor latino',
       notes: [0, 2],
       octaveShift: 0,
     },
@@ -1386,7 +1379,7 @@ function openInstrument(instId, noteObjs, place) {
 
   const scale = SCALES[SESSION_CONFIG.scale];
   ui.title.textContent = inst.label + (place ? ' · Lugar ' + place : '');
-  ui.sub.textContent = inst.sub + ' — ' + scale.name + ' (' + scale.notes.map(n => n.name).join(' ') + ')';
+  ui.sub.textContent = inst.sub;
 
   if (instId === 'theremin') {
     openTheremin(inst, scale);
@@ -1474,12 +1467,6 @@ const SORTEABLE = ['bells', 'handpan', 'fmbell', 'formant',
                    'djembe', 'cymbal', 'shaker', 'clap', 'timbales'];
 const sorteioBtn = document.getElementById('sorteioBtn');
 
-/* Escala visível na página do dado. */
-const menuScaleEl = document.getElementById('menuScale');
-if (menuScaleEl) {
-  const s = SCALES[SESSION_CONFIG.scale];
-  menuScaleEl.textContent = '🎼 ' + s.name + ' — ' + s.notes.map(n => n.name).join(' ');
-}
 
 sorteioBtn.addEventListener('click', () => {
   const instId = SORTEABLE[Math.floor(Math.random() * SORTEABLE.length)];
