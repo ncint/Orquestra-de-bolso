@@ -637,17 +637,19 @@ const AudioEngine = (() => {
   /* Samples do UTILIZADOR (pasta samples/perc/): se existirem,
      têm prioridade sobre os Sassaby e sobre a síntese. Carrega
      ficheiros com o nome exacto da chave. */
+  /* Selecção dos 49 samples Sassaby carregados pelo utilizador em
+     samples/perc/ — escolhidos por adequação a cada botão. */
   const SAMPLES_OWN = {
-    'djembe-grave': 'samples/perc/djembe-grave.wav',
-    'djembe-slap': 'samples/perc/djembe-slap.wav',
-    'cymbal-aberto': 'samples/perc/cymbal-aberto.wav',
-    'cymbal-fechado': 'samples/perc/cymbal-fechado.wav',
-    'shaker-seco': 'samples/perc/shaker-seco.wav',
-    'shaker-leve': 'samples/perc/shaker-leve.wav',
-    'clap-forte': 'samples/perc/clap-forte.wav',
-    'clap-suave': 'samples/perc/clap-suave.wav',
-    'timbales-casara': 'samples/perc/timbales-casara.wav',
-    'timbales-rim': 'samples/perc/timbales-rim.wav',
+    'djembe-grave': 'samples/perc/509528__sassaby__alfaia-hit.wav',
+    'djembe-slap': 'samples/perc/509893__sassaby__bata-iya-slap.wav',
+    'cymbal-aberto': 'samples/perc/545240__sassaby__china-trash-cymbal.wav',
+    'cymbal-fechado': 'samples/perc/512075__sassaby__electrocymbal-choke.wav',
+    'shaker-seco': 'samples/perc/506383__sassaby__shekere-hit.wav',
+    'shaker-leve': 'samples/perc/511273__sassaby__mele-open-tone.wav',
+    'clap-forte': 'samples/perc/531783__sassaby__caixa-samba-hit-2-reverb.wav',
+    'clap-suave': 'samples/perc/531785__sassaby__caixa-rim-hit-side-stick.wav',
+    'timbales-casara': 'samples/perc/533095__sassaby__timbales-high-macho.wav',
+    'timbales-rim': 'samples/perc/533089__sassaby__timbales-high-rimshot-macho.wav',
   };
   const ownTried = new Set();   /* chaves já testadas (evita 404 em loop) */
   const SAMPLES = {
