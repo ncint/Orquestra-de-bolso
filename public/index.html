@@ -634,6 +634,22 @@ const AudioEngine = (() => {
      freesound.org/people/Sassaby/packs/28352). Carregados sob
      pedido; se o ficheiro faltar ou falhar, os instrumentos usam a
      síntese. */
+  /* Samples do UTILIZADOR (pasta samples/perc/): se existirem,
+     têm prioridade sobre os Sassaby e sobre a síntese. Carrega
+     ficheiros com o nome exacto da chave. */
+  const SAMPLES_OWN = {
+    'djembe-grave': 'samples/perc/djembe-grave.wav',
+    'djembe-slap': 'samples/perc/djembe-slap.wav',
+    'cymbal-aberto': 'samples/perc/cymbal-aberto.wav',
+    'cymbal-fechado': 'samples/perc/cymbal-fechado.wav',
+    'shaker-seco': 'samples/perc/shaker-seco.wav',
+    'shaker-leve': 'samples/perc/shaker-leve.wav',
+    'clap-forte': 'samples/perc/clap-forte.wav',
+    'clap-suave': 'samples/perc/clap-suave.wav',
+    'timbales-casara': 'samples/perc/timbales-casara.wav',
+    'timbales-rim': 'samples/perc/timbales-rim.wav',
+  };
+  const ownTried = new Set();   /* chaves já testadas (evita 404 em loop) */
   const SAMPLES = {
     'djembe-grave': 'samples/509892__sassaby__bata-iya-tone.wav',
     'djembe-slap': 'samples/509893__sassaby__bata-iya-slap.wav',
@@ -650,9 +666,21 @@ const AudioEngine = (() => {
   const sampleLoading = new Set();
 
   function loadSample(key) {
-    if (sampleBuffers.has(key) || sampleLoading.has(key) || !SAMPLES[key]) {
+    if (sampleBuffers.has(key) || sampleLoading.has(key)) return;
+    /* 1) samples do utilizador (uma tentativa; 404 = não existe) */
+    if (SAMPLES_OWN[key] && !ownTried.has(key)) {
+      ownTried.add(key);
+      sampleLoading.add(key);
+      fetch(SAMPLES_OWN[key])
+        .then((r) => { if (!r.ok) throw new Error('http ' + r.status); return r.arrayBuffer(); })
+        .then((ab) => ensure().decodeAudioData(ab))
+        .then((buf) => { sampleBuffers.set(key, buf); })
+        .catch(() => { /* vai tentar o Sassaby */ })
+        .finally(() => { sampleLoading.delete(key); });
       return;
     }
+    /* 2) samples Sassaby; 3) síntese como fallback final */
+    if (!SAMPLES[key]) return;
     sampleLoading.add(key);
     fetch(SAMPLES[key])
       .then((r) => { if (!r.ok) throw new Error('http ' + r.status); return r.arrayBuffer(); })
@@ -786,16 +814,96 @@ const AudioEngine = (() => {
 
   /* Bells: parciais inarmónicos de sino (razões ~1 : 2.76 : 5.40 : 8.93),
      ataque rápido e decaimento longo — timbre metálico e ressonante. */
+  /* Ruído branco com decaimento — helper para transientes
+     (martelo dos sinos, slaps). */
+  function noiseSource(dur) {
+    const len = Math.max(1, Math.floor(dur * ctx.sampleRate));
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) {
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2);
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    return src;
+  }
+
+  /* Coro Formant: osciladores de serra + banco de 3 bandpass em
+     cascata (formantes vocálicos A-O-E ~700/1100/2600 Hz, tipo
+     coro "aah"), vibrato suave e ataque médio. */
+  function playFormant(freq) {
+    ensure();
+    const t = ctx.currentTime + 0.005;
+    const group = beginNote(t + 3.6);
+
+    /* vibrato lento (5 Hz, leve) */
+    const vib = ctx.createOscillator();
+    const vibG = ctx.createGain();
+    vib.frequency.value = 5;
+    vibG.gain.value = freq * 0.006;
+    vib.connect(vibG);
+
+    /* 3 vozes desafinadas (coro) */
+    const voices = ctx.createGain();
+    voices.gain.value = 1;
+    [-8, 0, 8].forEach((cents) => {
+      const o = ctx.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.value = freq * Math.pow(2, cents / 1200);
+      vibG.connect(o.frequency);
+      const og = ctx.createGain();
+      og.gain.value = 0.33;
+      o.connect(og).connect(voices);
+      o.start(t); o.stop(t + 3.4);
+    });
+    vib.start(t); vib.stop(t + 3.4);
+
+    /* banco de formantes em cascata */
+    const f1 = ctx.createBiquadFilter();
+    f1.type = 'bandpass'; f1.frequency.value = 700; f1.Q.value = 4;
+    const f2 = ctx.createBiquadFilter();
+    f2.type = 'bandpass'; f2.frequency.value = 1100; f2.Q.value = 5;
+    const f3 = ctx.createBiquadFilter();
+    f3.type = 'bandpass'; f3.frequency.value = 2600; f3.Q.value = 6;
+    /* mistura formantes: mais corpo (f1) que brilho (f3) */
+    const m1 = ctx.createGain(); m1.gain.value = 1.0;
+    const m2 = ctx.createGain(); m2.gain.value = 0.6;
+    const m3 = ctx.createGain(); m3.gain.value = 0.35;
+    voices.connect(f1).connect(m1);
+    voices.connect(f2).connect(m2);
+    voices.connect(f3).connect(m3);
+
+    const sum = ctx.createGain();
+    m1.connect(sum); m2.connect(sum); m3.connect(sum);
+
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.34, t + 0.09);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 3.3);
+    sum.connect(g).connect(master);
+    group.gains.push(g);
+  }
+
   function playBells(freq) {
     ensure();
     const t = ctx.currentTime + 0.005;
     const group = beginNote(t + 5.1);
     const ratios  = [1.0, 2.76, 5.40, 8.93];
-    const peaks   = [0.20, 0.11, 0.05, 0.025];
+    const peaks   = [0.22, 0.12, 0.055, 0.028];
     const decays  = [5.0, 3.4, 2.0, 1.1];
     ratios.forEach((r, i) => {
       partial(group, freq * r, t, peaks[i], 0.004, decays[i]);
     });
+    /* transiente de martelo: ruído highpass curtíssimo — dá o
+       'tino' físico do badalo a bater no metal. */
+    const strike = noiseSource(0.05);
+    const sg = ctx.createGain();
+    sg.gain.setValueAtTime(0.10, t);
+    sg.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+    const sf = ctx.createBiquadFilter();
+    sf.type = 'highpass'; sf.frequency.value = freq * 4;
+    strike.connect(sf).connect(sg).connect(master);
+    strike.start(t); strike.stop(t + 0.06);
   }
 
   /* Handpan: fundamental dominante com oitava e quinta filtradas,
@@ -810,6 +918,8 @@ const AudioEngine = (() => {
     const o1 = ctx.createOscillator();
     const g1 = ctx.createGain();
     o1.type = 'sine';
+    /* dupla fundamental com 0,4 Hz de beating: shimmer metálico
+       do aço, como um handpan real. */
     o1.frequency.value = freq;
     g1.gain.setValueAtTime(0.0001, t);
     g1.gain.linearRampToValueAtTime(0.55, t + attack);
@@ -817,6 +927,17 @@ const AudioEngine = (() => {
     o1.connect(g1).connect(master);
     o1.start(t); o1.stop(t + attack + 4.7);
     group.gains.push(g1);
+
+    const o1b = ctx.createOscillator();
+    const g1b = ctx.createGain();
+    o1b.type = 'sine';
+    o1b.frequency.value = freq * 1.0015;
+    g1b.gain.setValueAtTime(0.0001, t);
+    g1b.gain.linearRampToValueAtTime(0.30, t + attack);
+    g1b.gain.exponentialRampToValueAtTime(0.0001, t + attack + 4.5);
+    o1b.connect(g1b).connect(master);
+    o1b.start(t); o1b.stop(t + attack + 4.7);
+    group.gains.push(g1b);
 
     partial(group, freq * 2.0, t, 0.16, attack, 2.8);
     partial(group, freq * 3.0, t, 0.07, attack, 1.6);
@@ -848,10 +969,13 @@ const AudioEngine = (() => {
     carrier.frequency.value = freq;
     modulator.type = 'sine';
     modulator.frequency.value = freq * 3.5;
-    modGain.gain.setValueAtTime(freq * 2.2, t);
-    modGain.gain.exponentialRampToValueAtTime(freq * 0.02, t + 0.7);
+    /* índice FM mais baixo no ataque (menos áspero) com queda
+       em duas etapas: campana metálica mas cantável. */
+    modGain.gain.setValueAtTime(freq * 1.6, t);
+    modGain.gain.exponentialRampToValueAtTime(freq * 0.25, t + 0.18);
+    modGain.gain.exponentialRampToValueAtTime(freq * 0.02, t + 0.9);
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.linearRampToValueAtTime(0.5, t + 0.004);
+    g.gain.linearRampToValueAtTime(0.42, t + 0.004);
     g.gain.exponentialRampToValueAtTime(0.0001, t + 3.0);
     modulator.connect(modGain).connect(carrier.frequency);
     carrier.connect(g).connect(master);
