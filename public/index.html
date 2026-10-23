@@ -217,14 +217,70 @@
   .note-pad .note-hint { font-size: 12px; font-weight: 400; opacity: .55;
                          margin-top: 8px; }
 
-  /* F. Volume (compacto) */
-  .volume-row {
-    display: flex; align-items: center; gap: 12px;
-    margin-top: 14px; padding: 0 2px;
+  /* ===== Mesa de mistura: faders verticais + pan horizontal ===== */
+  .mixer {
+    display: flex; align-items: stretch; justify-content: center;
+    gap: 22px; margin-top: 14px; padding: 14px 10px 8px;
+    border-top: 1px solid var(--line);
   }
-  .volume-row label { font-size: 12.5px; color: var(--ink-2); white-space: nowrap; }
-  .volume-row input[type="range"] {
-    flex: 1 1 auto; accent-color: var(--accent); height: 28px;
+  .channel {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+  }
+  .channel .ch-label {
+    font-size: 10.5px; font-weight: 600; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--ink-2);
+  }
+  /* Fader vertical (volume): ranhura fina + carrinho de consola */
+  .fader-v {
+    position: relative; width: 44px; height: 120px;
+    touch-action: none; user-select: none; cursor: pointer;
+  }
+  .fader-v .track {
+    position: absolute; left: 50%; top: 6px; bottom: 6px; width: 3px;
+    transform: translateX(-50%);
+    background: var(--line); border-radius: 2px;
+  }
+  .fader-v .cap {
+    position: absolute; left: 50%; width: 34px; height: 18px;
+    transform: translate(-50%, 50%);
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 3px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+    transition: border-color .12s;
+  }
+  .fader-v .cap::after {
+    content: ''; position: absolute; left: 5px; right: 5px; top: 50%;
+    height: 2px; transform: translateY(-50%);
+    background: var(--accent); border-radius: 1px;
+  }
+  .fader-v.dragging .cap { border-color: var(--accent); }
+  /* Pan horizontal: SÓ o cursor (sem barra/risco) */
+  .pan-zone {
+    position: relative; width: 128px; height: 40px;
+    touch-action: none; user-select: none; cursor: pointer;
+  }
+  .pan-zone .center-mark {
+    position: absolute; left: 50%; top: 8px; bottom: 8px; width: 2px;
+    transform: translateX(-50%);
+    background: var(--line); border-radius: 1px;
+  }
+  .pan-zone .knob {
+    position: absolute; top: 50%; width: 26px; height: 26px;
+    border-radius: 50%;
+    background: var(--surface); border: 1.5px solid var(--ink-2);
+    transform: translate(-50%, -50%);
+    transition: border-color .12s;
+  }
+  .pan-zone .knob::after {
+    content: ''; position: absolute; left: 50%; top: 50%;
+    width: 2px; height: 9px; transform: translate(-50%, -110%);
+    background: var(--accent);
+  }
+  .pan-zone.dragging .knob { border-color: var(--accent); }
+  .pan-zone .pan-hint {
+    display: flex; justify-content: space-between;
+    font-size: 10px; color: var(--ink-2); margin-top: 4px;
+    letter-spacing: .1em;
   }
 
   .back-btn {
@@ -373,9 +429,24 @@
     <button class="motion-btn" id="motionBtn" style="display:none">
       Ativar movimento
     </button>
-    <div class="volume-row">
-      <label for="volSlider">Volume</label>
-      <input type="range" id="volSlider" min="0" max="1.5" step="0.01" value="1">
+    <div class="mixer">
+      <div class="channel">
+        <span class="ch-label">Volume</span>
+        <div class="fader-v" id="faderVolume" role="slider" aria-label="Volume"
+             aria-valuemin="0" aria-valuemax="1.5">
+          <div class="track"></div>
+          <div class="cap"></div>
+        </div>
+      </div>
+      <div class="channel">
+        <span class="ch-label">Pan</span>
+        <div class="pan-zone" id="panZone" role="slider" aria-label="Panorâmica"
+             aria-valuemin="-1" aria-valuemax="1">
+          <div class="center-mark"></div>
+          <div class="knob"></div>
+          <div class="pan-hint"><span>E</span><span>D</span></div>
+        </div>
+      </div>
     </div>
   </div>
   <div class="note-pads" id="pads"></div>
@@ -630,6 +701,10 @@ const AudioEngine = (() => {
          headroom; o shelf de presença (+3,5 dB a 2,2 kHz) abre o
          espectro na zona onde estas colunas respondem melhor,
          dando brilho sem aumentar o pico. */
+      /* Pan estéreo (mesa de mistura): colocado antes do limitador,
+         como o pan de um canal de consola. */
+      const panner = ctx.createStereoPanner();
+      panner.pan.value = 0;
       const hp = ctx.createBiquadFilter();
       hp.type = 'highpass';
       hp.frequency.value = 120;
@@ -651,7 +726,9 @@ const AudioEngine = (() => {
       limiter.ratio.value = 12;
       limiter.attack.value = 0.003;
       limiter.release.value = 0.15;
-      master.connect(hp);
+      masterPanner = panner;
+      masterPanner.pan.value = panPref;
+      master.connect(panner);
       hp.connect(presence);
       presence.connect(air);
       air.connect(limiter).connect(ctx.destination);
@@ -1212,13 +1289,25 @@ const AudioEngine = (() => {
     else if (instrumentId === 'timbales') playPercOrSample('timbales', freq, arguments[2], playTimbales);
   }
 
+  let masterPanner = null;
   function setVolume(v) {
     if (master && typeof v === 'number' && v >= 0) master.gain.value = v * 0.9;
   }
 
+  /* Pan: -1 (esquerda) a 1 (direita). A mesa guarda a preferência
+     e aplica-a quando o contexto de áudio nasce. */
+  let panPref = 0;
+  function setPan(p) {
+    panPref = Math.max(-1, Math.min(1, p || 0));
+    if (masterPanner) {
+      try { masterPanner.pan.setTargetAtTime(panPref, ctx.currentTime, 0.02); }
+      catch (_) { masterPanner.pan.value = panPref; }
+    }
+  }
+
 
   return {
-    ensure, isReady, play, setVolume,
+    ensure, isReady, play, setVolume, setPan,
     startTheremin, setThereminFreq, setThereminTone, setThereminVolume, stopTheremin,
     preloadPercussion,
   };
@@ -1783,21 +1872,104 @@ motionBtn.addEventListener('click', () => {
   });
 });
 
-const volSlider = document.getElementById('volSlider');
+/* ================================================================
+   MESA DE MISTURA — faders com pointer events (fiável em iOS e
+   Android, ao contrário de input[type=range] vertical).
+   Volume: fader vertical tipo canal de consola.
+   Pan: cursor horizontal central, sem barra — E ↔ D.
+   ================================================================ */
+const VOL_MIN = 0, VOL_MAX = 1.5;
+const faderVolumeEl = document.getElementById('faderVolume');
+const faderCap = faderVolumeEl.querySelector('.cap');
+const panZoneEl = document.getElementById('panZone');
+const panKnob = panZoneEl.querySelector('.knob');
+
 function volumeKey() {
   return 'ob-vol-' + (placeAssignment ? placeAssignment.place : 'livre');
 }
-function loadVolume() {
-  try {
-    const v = parseFloat(localStorage.getItem(volumeKey()));
-    if (!isNaN(v)) volSlider.value = String(v);
-  } catch (_) {}
-  AudioEngine.setVolume(parseFloat(volSlider.value));
+function panKey() {
+  return 'ob-pan-' + (placeAssignment ? placeAssignment.place : 'livre');
 }
-volSlider.addEventListener('input', () => {
-  AudioEngine.setVolume(parseFloat(volSlider.value));
-  try { localStorage.setItem(volumeKey(), volSlider.value); } catch (_) {}
+
+/* Volume: 0 (abaixo) a 1.5 (acima). */
+function setFaderVolume(v, save) {
+  v = Math.max(VOL_MIN, Math.min(VOL_MAX, v));
+  const t = v / VOL_MAX;                 /* 0..1 */
+  /* carrinho: bottom usa % (topo = volume máximo) */
+  faderCap.style.bottom = (6 + t * 92) + '%';
+  faderVolumeEl.setAttribute('aria-valuenow', String(v.toFixed(2)));
+  AudioEngine.setVolume(v);
+  if (save) { try { localStorage.setItem(volumeKey(), String(v)); } catch (_) {} }
+}
+function volumeFromEvent(e) {
+  const r = faderVolumeEl.getBoundingClientRect();
+  const t = 1 - (e.clientY - r.top) / r.height;   /* cima = máximo */
+  return Math.max(VOL_MIN, Math.min(VOL_MAX, t * VOL_MAX));
+}
+
+/* Pan: -1 (esquerda) a 1 (direita); 0 = centro (marca fixa). */
+function setFaderPan(p, save) {
+  p = Math.max(-1, Math.min(1, p));
+  panKnob.style.left = ((p + 1) / 2 * 100) + '%';
+  panZoneEl.setAttribute('aria-valuenow', String(p.toFixed(2)));
+  AudioEngine.setPan(p);
+  if (save) { try { localStorage.setItem(panKey(), String(p)); } catch (_) {} }
+}
+function panFromEvent(e) {
+  const r = panZoneEl.getBoundingClientRect();
+  const t = (e.clientX - r.left) / r.width;
+  return Math.max(-1, Math.min(1, t * 2 - 1));
+}
+
+/* Arrastar volume */
+faderVolumeEl.addEventListener('pointerdown', (e) => {
+  faderVolumeEl.classList.add('dragging');
+  faderVolumeEl.setPointerCapture(e.pointerId);
+  setFaderVolume(volumeFromEvent(e), true);
 });
+faderVolumeEl.addEventListener('pointermove', (e) => {
+  if (faderVolumeEl.hasPointerCapture && faderVolumeEl.hasPointerCapture(e.pointerId)) {
+    setFaderVolume(volumeFromEvent(e), true);
+  }
+});
+faderVolumeEl.addEventListener('pointerup', (e) => {
+  faderVolumeEl.classList.remove('dragging');
+  try { faderVolumeEl.releasePointerCapture(e.pointerId); } catch (_) {}
+});
+faderVolumeEl.addEventListener('pointercancel', () => {
+  faderVolumeEl.classList.remove('dragging');
+});
+
+/* Arrastar pan */
+panZoneEl.addEventListener('pointerdown', (e) => {
+  panZoneEl.classList.add('dragging');
+  panZoneEl.setPointerCapture(e.pointerId);
+  setFaderPan(panFromEvent(e), true);
+});
+panZoneEl.addEventListener('pointermove', (e) => {
+  if (panZoneEl.hasPointerCapture && panZoneEl.hasPointerCapture(e.pointerId)) {
+    setFaderPan(panFromEvent(e), true);
+  }
+});
+panZoneEl.addEventListener('pointerup', (e) => {
+  panZoneEl.classList.remove('dragging');
+  try { panZoneEl.releasePointerCapture(e.pointerId); } catch (_) {}
+});
+panZoneEl.addEventListener('pointercancel', () => {
+  panZoneEl.classList.remove('dragging');
+});
+
+function loadVolume() {
+  let v = 1, p = 0;
+  try {
+    const sv = parseFloat(localStorage.getItem(volumeKey()));
+    if (!isNaN(sv)) v = sv;
+    const sp = parseFloat(localStorage.getItem(panKey()));
+    if (!isNaN(sp)) p = sp;
+  } catch (_) {}
+  setFaderVolume(v, false);
+  setFaderPan(p, false);
+}
 
 /* ================================================================
    3c. MODO LUGAR (?lugar=N)
