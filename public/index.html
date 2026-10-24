@@ -732,7 +732,7 @@ const AudioEngine = (() => {
       reverb = ctx.createConvolver();
       reverb.buffer = revBuf;
       reverbGain = ctx.createGain();
-      reverbGain.gain.value = 0.10;
+      reverbGain.gain.value = 0.06;
       reverb.connect(reverbGain).connect(ctx.destination);
       /* EQ espectral para colunas de telemóvel: as colunas pequenas
          reproduzem ~300 Hz-8 kHz. O corte de sub-grave (highpass
@@ -761,7 +761,7 @@ const AudioEngine = (() => {
          reproduzem Web Audio mais baixo; o limitador suave (knee 10)
          absorve os picos sem distorcer. */
       const makeup = ctx.createGain();
-      makeup.gain.value = 1.585;
+      makeup.gain.value = 2.0;
       /* Limitador suave no master: evita clipping (estalidos) quando
          várias vozes + reverb + volume do slider somam acima de 1.0. */
       const limiter = ctx.createDynamicsCompressor();
@@ -892,7 +892,7 @@ const AudioEngine = (() => {
 
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.linearRampToValueAtTime(0.20, t + 0.09);
+    g.gain.linearRampToValueAtTime(0.38, t + 0.09);
     g.gain.exponentialRampToValueAtTime(0.0001, t + 3.3);
     sum.connect(g).connect(master);
     group.gains.push(g);
@@ -903,7 +903,7 @@ const AudioEngine = (() => {
     const t = ctx.currentTime + 0.005;
     const group = beginNote(t + 5.1);
     const ratios  = [1.0, 2.76, 5.40, 8.93];
-    const peaks   = [0.22, 0.12, 0.055, 0.028];
+    const peaks   = [0.34, 0.18, 0.08, 0.04];
     const decays  = [5.0, 3.4, 2.0, 1.1];
     ratios.forEach((r, i) => {
       partial(group, freq * r, t, peaks[i], 0.004, decays[i]);
@@ -936,7 +936,7 @@ const AudioEngine = (() => {
        do aço, como um handpan real. */
     o1.frequency.value = freq;
     g1.gain.setValueAtTime(0.0001, t);
-    g1.gain.linearRampToValueAtTime(0.55, t + attack);
+    g1.gain.linearRampToValueAtTime(0.48, t + attack);
     g1.gain.exponentialRampToValueAtTime(0.0001, t + attack + 4.5);
     o1.connect(g1).connect(master);
     o1.start(t); o1.stop(t + attack + 4.7);
@@ -1016,7 +1016,7 @@ const AudioEngine = (() => {
     lp.Q.value = 0.7;
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.linearRampToValueAtTime(0.26, t + 1.2);
+    g.gain.linearRampToValueAtTime(0.40, t + 1.2);
     g.gain.exponentialRampToValueAtTime(0.0001, t + 8.5);
 
     [-7, 0, 7].forEach((cents) => {
