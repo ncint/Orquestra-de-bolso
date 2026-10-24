@@ -717,7 +717,7 @@ const AudioEngine = (() => {
     if (!ctx) {
       ctx = new (window.AudioContext || window.webkitAudioContext)();
       master = ctx.createGain();
-      master.gain.value = 0.9;
+      master.gain.value = 1.0;
       /* Reverb global: resposta ao impulso sintetizada (ruído com
          decaimento exponencial, 2,6 s) — sem ficheiros externos.
          Mix ~18% para dar espaço sem enlamear. */
@@ -757,6 +757,11 @@ const AudioEngine = (() => {
       air.type = 'highshelf';
       air.frequency.value = 6500;
       air.gain.value = 2;
+      /* Make-up de consola: +4 dB depois do EQ — os iPhones
+         reproduzem Web Audio mais baixo; o limitador suave (knee 10)
+         absorve os picos sem distorcer. */
+      const makeup = ctx.createGain();
+      makeup.gain.value = 1.585;
       /* Limitador suave no master: evita clipping (estalidos) quando
          várias vozes + reverb + volume do slider somam acima de 1.0. */
       const limiter = ctx.createDynamicsCompressor();
@@ -770,7 +775,8 @@ const AudioEngine = (() => {
       master.connect(panner);
       hp.connect(presence);
       presence.connect(air);
-      air.connect(limiter).connect(ctx.destination);
+      air.connect(makeup);
+      makeup.connect(limiter).connect(ctx.destination);
       master.connect(reverb);
     }
     if (ctx.state === 'suspended') ctx.resume();
@@ -1426,7 +1432,7 @@ const AudioEngine = (() => {
 
   let masterPanner = null;
   function setVolume(v) {
-    if (master && typeof v === 'number' && v >= 0) master.gain.value = v * 0.9;
+    if (master && typeof v === 'number' && v >= 0) master.gain.value = v;
   }
 
   /* Pan: -1 (esquerda) a 1 (direita). A mesa guarda a preferência
