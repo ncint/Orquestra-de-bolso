@@ -409,9 +409,9 @@
   </button>
 
   <button class="choose-btn" data-inst="theremin">
-    <span class="txt"><b>Theremin de Paz
+    <span class="txt"><b>Murano
   </b>
-      <small>Um dedo, ou dois</small>
+      <small>Arrasta no campo</small>
     </span>
   </button>
   </div><!-- /free-choice -->
@@ -588,7 +588,7 @@ const SESSION_CONFIG = {
     },
     theremin: {
       id: 'theremin',
-      label: '🕊 Theremin de Paz',
+      label: 'Murano',
       sub: 'Arrasta o dedo no campo',
       octaveShift: 0,
     },
@@ -698,6 +698,16 @@ const AudioEngine = (() => {
       .finally(() => { sampleLoading.delete(key); });
   }
 
+  /* Normalização por sample: os WAVs Sassaby têm RMS entre -20,6
+     e -6,0 dB — ganho individual para tocarem ao mesmo nível. */
+  const SAMPLE_GAINS = {
+    'djembe-grave': 3.2, 'djembe-slap': 2.2,
+    'cymbal-aberto': 0.8, 'cymbal-fechado': 1.5,
+    'shaker-seco': 3.0, 'shaker-leve': 1.6,
+    'clap-forte': 2.0, 'clap-suave': 0.9,
+    'timbales-casara': 1.7, 'timbales-rim': 1.4,
+  };
+
   function playSample(key) {
     const buf = sampleBuffers.get(key);
     if (!buf) return false;
@@ -706,7 +716,7 @@ const AudioEngine = (() => {
     const src = ctx.createBufferSource();
     src.buffer = buf;
     const g = ctx.createGain();
-    g.gain.value = 1.0;
+    g.gain.value = SAMPLE_GAINS[key] || 1.0;
     src.connect(g).connect(master);
     src.start(t);
     group.gains.push(g);
@@ -892,7 +902,7 @@ const AudioEngine = (() => {
 
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.linearRampToValueAtTime(0.38, t + 0.09);
+    g.gain.linearRampToValueAtTime(0.50, t + 0.09);
     g.gain.exponentialRampToValueAtTime(0.0001, t + 3.3);
     sum.connect(g).connect(master);
     group.gains.push(g);
@@ -1016,7 +1026,7 @@ const AudioEngine = (() => {
     lp.Q.value = 0.7;
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.linearRampToValueAtTime(0.40, t + 1.2);
+    g.gain.linearRampToValueAtTime(0.55, t + 1.2);
     g.gain.exponentialRampToValueAtTime(0.0001, t + 8.5);
 
     [-7, 0, 7].forEach((cents) => {
