@@ -772,14 +772,22 @@ const AudioEngine = (() => {
          absorve os picos sem distorcer. */
       const makeup = ctx.createGain();
       makeup.gain.value = 2.0;
-      /* Limitador suave no master: evita clipping (estalidos) quando
-         várias vozes + reverb + volume do slider somam acima de 1.0. */
-      const limiter = ctx.createDynamicsCompressor();
-      limiter.threshold.value = -4;
-      limiter.knee.value = 10;
-      limiter.ratio.value = 8;
-      limiter.attack.value = 0.003;
-      limiter.release.value = 0.15;
+      /* Soft-clipper WaveShaper em vez de DynamicsCompressor: a
+         implementação do compressor no iOS Safari comprime muito mais
+         que nos outros browsers (diferenças conhecidas do WebKit) —
+         daí o volume 'encostar o ouvido' vs YouTube. O WaveShaper é
+         matemática pura, idêntica em todo o lado: curva tanh que
+         deixa sinal até ~0 dBFS e dobra suavemente acima. */
+      const limiter = ctx.createWaveShaper();
+      const n = 1024;
+      const curve = new Float32Array(n);
+      for (let i = 0; i < n; i++) {
+        const x = (i / (n - 1)) * 2 - 1;        /* -1 a 1 */
+        /* tanh escalado: linear até ~0.5, satura suave acima */
+        curve[i] = Math.tanh(x * 1.5) / Math.tanh(1.5);
+      }
+      limiter.curve = curve;
+      limiter.oversample = '2x';
       masterPanner = panner;
       masterPanner.pan.value = panPref;
       master.connect(panner);
